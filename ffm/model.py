@@ -18,7 +18,6 @@ class RMSELoss(torch.nn.Module):
         loss = torch.sqrt(criterion(x, y)+self.eps)
         return loss
 
-
 class FieldAwareFactorizationMachine(nn.Module):
 
     def __init__(self, field_dims: np.ndarray, embed_dim: int):

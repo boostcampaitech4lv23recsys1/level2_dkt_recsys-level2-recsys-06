@@ -6,8 +6,10 @@ import torch
 
 import torch.nn as nn
 import torch.optim as optim 
-from model import rmse, RMSELoss
+from model import RMSELoss,rmse
 from model import FactorizationMachine,_FactorizationMachineModel
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
 
 class FactorizationMachineModel:
 
@@ -21,7 +23,7 @@ class FactorizationMachineModel:
         self.field_dims = data['field_dim']
 
         self.embed_dim = 16
-        self.epochs = 10
+        self.epochs = 20
         self.learning_rate = 1e-3
         self.weight_decay = 1e-6
         self.log_interval = 100
@@ -50,8 +52,8 @@ class FactorizationMachineModel:
                     tk0.set_postfix(loss=total_loss / self.log_interval)
                     total_loss = 0
 
-            rmse_score = self.predict_val()
-            print('epoch:', e, 'validation: rmse:', rmse_score)
+            auc_score= self.predict_val()
+            print('epoch:', e, 'validation: auc:', auc_score)
             
     
     def predict_val(self):
@@ -63,7 +65,7 @@ class FactorizationMachineModel:
                 y = self.model(fields)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
-        return rmse(targets, predicts)
+        return roc_auc_score(targets, predicts)
     
     
     def predict(self, dataloader):

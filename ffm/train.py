@@ -5,9 +5,11 @@ import numpy as np
 import torch
 
 import torch.nn as nn
-import torch.optim as optim 
-from model import rmse, RMSELoss
+import torch.optim as optim
+from model import RMSELoss,rmse
 from model import FieldAwareFactorizationMachine, _FieldAwareFactorizationMachineModel
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
 
 class FieldAwareFactorizationMachineModel:
 
@@ -18,8 +20,8 @@ class FieldAwareFactorizationMachineModel:
         self.field_dims = data['field_dim']
 
         self.embed_dim = 16
-        self.epochs = 5
-        self.learning_rate = 1e-3
+        self.epochs = 10
+        self.learning_rate = 1e-2
         self.weight_decay = 1e-6
         self.log_interval = 100
 
@@ -48,8 +50,8 @@ class FieldAwareFactorizationMachineModel:
                     tk0.set_postfix(loss=total_loss / self.log_interval)
                     total_loss = 0
 
-            rmse_score = self.predict_train()
-            print('epoch:', epoch, 'validation: rmse:', rmse_score)
+            auc_score = self.predict_train()
+            print('epoch:', epoch, 'validation: auc:', auc_score)
 
 
     def predict_train(self):
@@ -61,7 +63,7 @@ class FieldAwareFactorizationMachineModel:
                 y = self.model(fields)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
-        return rmse(targets, predicts)
+        return roc_auc_score(targets, predicts)
 
 
     def predict(self, dataloader):

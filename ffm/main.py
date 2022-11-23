@@ -12,7 +12,7 @@ from data_process import data_processing, context_data_split, context_data_loade
 from train import FieldAwareFactorizationMachineModel
 
 train = pd.read_csv('~/input/data/train_data.csv')
-fm_test = pd.read_csv('~/input/data/fm_test_data.csv')
+fm_test = pd.read_csv('~/input/data/test_data_no_sub.csv')
 test = pd.read_csv('~/input/data/fm_test_data.csv')
 sub = pd.read_csv('~/input/data/fm_submission.csv')
 
@@ -38,11 +38,10 @@ def main():
         predicts_list.append(predicts)
         
     sub['answerCode'] = np.mean(predicts_list, axis=0)
-
     now = time.localtime()
     now_date = time.strftime('%Y%m%d', now)
     now_hour = time.strftime('%X', now)
     save_time = now_date + '_' + now_hour.replace(':', '')
-    sub.to_csv('{}_{}.csv'.format(save_time,"FM"), index=False)
+    sub.to_csv('{}_{}.csv'.format(save_time,"FFM"), index=False)
 
 main()
