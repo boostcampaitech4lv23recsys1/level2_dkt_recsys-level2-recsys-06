@@ -29,6 +29,7 @@ def main():
     seed_everything(9)
     data = data_processing(train,fm_test,test,sub)
     for i in range(5):
+        print('current fold : ', i+1)
         data = stratified_kfold(data,i)
         data = context_data_loader(data)
         model = FieldAwareFactorizationMachineModel(data)
