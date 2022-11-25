@@ -23,9 +23,9 @@ class FactorizationMachineModel:
         self.field_dims = data['field_dim']
 
         self.embed_dim = 16
-        self.epochs = 20
-        self.learning_rate = 1e-3
-        self.weight_decay = 1e-6
+        self.epochs = 5
+        self.learning_rate = 1e-2
+        self.weight_decay = 1e-5
         self.log_interval = 100
 
         self.device = 'cuda'

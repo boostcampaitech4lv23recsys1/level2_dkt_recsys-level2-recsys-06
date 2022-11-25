@@ -6,8 +6,6 @@ import numpy as np
 import torch 
 import torch.nn as nn
 
-
-
 from data_process import data_processing, context_data_split, context_data_loader, stratified_kfold
 from train import FactorizationMachineModel
 
@@ -28,7 +26,9 @@ predicts_list = []
 def main():
     seed_everything(9)
     data = data_processing(train,fm_test,test,sub)
+    kfold_count = 5
     for i in range(5):
+        print('current fold : ', i+1)
         data = stratified_kfold(data,i)
         data = context_data_loader(data)
         model = FactorizationMachineModel(data)
