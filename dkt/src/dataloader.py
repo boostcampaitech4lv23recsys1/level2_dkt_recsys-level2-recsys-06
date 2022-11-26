@@ -10,12 +10,25 @@ import tqdm
 from sklearn.preprocessing import LabelEncoder
 from collections import defaultdict
 
+class StandardScaler:
+    def __init__(self):
+        self.train_mean = None
+        self.train_std = None
+
+    def build(self, train_data):
+        self.train_mean = train_data.mean()
+        self.train_std = train_data.std()
+
+    def normalize(self, df):
+        return (df - self.train_mean) / self.train_std
+
 
 class Preprocess:
     def __init__(self, args):
         self.args = args
         self.train_data = None
         self.test_data = None
+        self.duration_normalizer = StandardScaler()
 
     def get_train_data(self):
         return self.train_data
@@ -78,8 +91,7 @@ class Preprocess:
 
         return df
 
-    def __feature_engineering(self, df):
-        # TODO
+    def __feature_engineering(self, df, is_train):
         """
         Make duration feature
         """
@@ -94,6 +106,12 @@ class Preprocess:
 
         indexes = df[df['duration'] > 1200].index
         df.loc[indexes, 'duration'] = 1200
+
+        if is_train:
+            self.duration_normalizer.build(df['duration'])
+            df['duration'] = self.duration_normalizer.normalize(df['duration'])
+        else:
+            df['duration'] = self.duration_normalizer.normalize(df['duration'])
 
         """
         Make assess_ratio feature
@@ -115,7 +133,7 @@ class Preprocess:
     def load_data_from_file(self, file_name, is_train=True):
         csv_file_path = os.path.join(self.args.data_dir, file_name)
         df = pd.read_csv(csv_file_path)  # , nrows=100000)
-        df = self.__feature_engineering(df)
+        df = self.__feature_engineering(df, is_train)
         df = self.__preprocessing(df, is_train)
 
         # 추후 feature를 embedding할 시에 embedding_layer의 input 크기를 결정할때 사용
