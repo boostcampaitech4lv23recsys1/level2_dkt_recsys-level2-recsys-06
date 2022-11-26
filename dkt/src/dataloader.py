@@ -79,6 +79,18 @@ class Preprocess:
 
     def __feature_engineering(self, df):
         # TODO
+        df = df.sort_values(by=['userID', 'Timestamp']).reset_index(drop=True)
+        df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+        df['months'] = df['Timestamp'].dt.month
+        df['days'] = df['Timestamp'].dt.day
+        df['ts'] = df['Timestamp'].map(pd.Timestamp.timestamp)
+        df['prev_ts'] = df.groupby(['userID', 'testId', 'months','days'])['ts'].shift(1)
+        df["prev_ts"] = df["prev_ts"].fillna(0)
+        df["duration"] = np.where(df["prev_ts"] == 0, 0, df["ts"] - df["prev_ts"])
+
+        indexes = df[df['duration'] > 1200].index
+        df.loc[indexes, 'duration'] = 1200
+
         return df
 
     def load_data_from_file(self, file_name, is_train=True):
@@ -89,30 +101,13 @@ class Preprocess:
 
         # 추후 feature를 embedding할 시에 embedding_layer의 input 크기를 결정할때 사용
 
-        self.args.n_questions = len(
-            np.load(os.path.join(self.args.asset_dir, "assessmentItemID_classes.npy"))
-        )
-        self.args.n_test = len(
-            np.load(os.path.join(self.args.asset_dir, "testId_classes.npy"))
-        )
-        self.args.n_tag = len(
-            np.load(os.path.join(self.args.asset_dir, "KnowledgeTag_classes.npy"))
-        )
+        self.args.n_questions = len(np.load(os.path.join(self.args.asset_dir, "assessmentItemID_classes.npy")))
+        self.args.n_test = len(np.load(os.path.join(self.args.asset_dir, "testId_classes.npy")))
+        self.args.n_tag = len(np.load(os.path.join(self.args.asset_dir, "KnowledgeTag_classes.npy")))
 
         df = df.sort_values(by=["userID", "Timestamp"], axis=0)
         columns = ["userID", "assessmentItemID", "testId", "answerCode", "KnowledgeTag"]
-        group = (
-            df[columns]
-            .groupby("userID")
-            .apply(
-                lambda r: (
-                    r["testId"].values,
-                    r["assessmentItemID"].values,
-                    r["KnowledgeTag"].values,
-                    r["answerCode"].values,
-                )
-            )
-        )
+        group = (df[columns].groupby("userID").apply(lambda x: (x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x["answerCode"].values)))
 
         return group.values
 

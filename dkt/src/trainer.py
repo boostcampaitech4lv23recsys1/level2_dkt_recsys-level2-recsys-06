@@ -2,6 +2,7 @@ import math
 import os
 
 import torch
+import torch.nn.functional as F
 import wandb
 
 from .criterion import get_criterion
@@ -150,7 +151,8 @@ def inference(args, test_data, model):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
 
         preds = model(input)
-
+        #TODO sigmoid
+        preds = F.sigmoid(preds)
         # predictions
         preds = preds[:, -1]
         preds = preds.cpu().detach().numpy()
