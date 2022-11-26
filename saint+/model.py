@@ -42,7 +42,7 @@ class SaintPlus(nn.Module):
         self.answerCorr_emb = nn.Embedding(3, d_model)
 
         self.emb_dense1 = nn.Linear(2*d_model, d_model)
-        self.emb_dense2 = nn.Linear(5*d_model, d_model)
+        self.emb_dense2 = nn.Linear(4*d_model, d_model) #5
 
         self.transformer = nn.Transformer(d_model=d_model, nhead=num_heads, num_encoder_layers=num_layers,
                                           num_decoder_layers=num_layers, dim_feedforward=d_ffn, dropout=dropout)
@@ -50,7 +50,7 @@ class SaintPlus(nn.Module):
         self.FFN = FFN(d_ffn, d_model, dropout=dropout)
         self.final_layer = nn.Linear(d_model, 1)
 
-    def forward(self, content_ids, time_lag, ques_elapsed_time, item_aver, user_aver, answer_correct):
+    def forward(self, content_ids, time_lag, ques_elapsed_time, item_aver, answer_correct):
         device = content_ids.device
         seq_len = content_ids.shape[1]
 
@@ -70,17 +70,17 @@ class SaintPlus(nn.Module):
         item_aver = item_aver.view(-1, 1) # [batch*seq_len, 1]
         item_aver = self.itemAver_emb(item_aver) # [batch*seq_len, d_model]
         item_aver = item_aver.view(-1, seq_len, self.d_model) # [batch, seq_len, d_model]
-        user_aver = torch.log(user_aver+1)
-        user_aver = user_aver.view(-1, 1) # [batch*seq_len, 1]
-        user_aver = self.userAver_emb(user_aver) # [batch*seq_len, d_model]
-        user_aver = user_aver.view(-1, seq_len, self.d_model) # [batch, seq_len, d_model]
+        # user_aver = torch.log(user_aver+1)
+        # user_aver = user_aver.view(-1, 1) # [batch*seq_len, 1]
+        # user_aver = self.userAver_emb(user_aver) # [batch*seq_len, d_model]
+        # user_aver = user_aver.view(-1, seq_len, self.d_model) # [batch, seq_len, d_model]
          ####
 
         answer_correct_emb = self.answerCorr_emb(answer_correct)
 
         encoder_val = torch.cat((content_id_emb, time_lag), axis=-1)
         encoder_val = self.emb_dense1(encoder_val)
-        decoder_val = torch.cat((time_lag, elapsed_time, item_aver, user_aver, answer_correct_emb), axis=-1)
+        decoder_val = torch.cat((time_lag, elapsed_time, item_aver, answer_correct_emb), axis=-1) #user_aver
         decoder_val = self.emb_dense2(decoder_val)
 
         pos = torch.arange(seq_len).unsqueeze(0).to(device)

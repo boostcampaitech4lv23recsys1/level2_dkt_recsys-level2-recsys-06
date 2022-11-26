@@ -2,7 +2,7 @@ import time
 import pickle
 import numpy as np
 import pandas as pd
-from utils import get_time_lag
+from utils import get_time_lag,make_assess_ratio,duration
 
 """
 data is from kaggler: tito's strategy
@@ -33,6 +33,10 @@ data_type = {
     "prior_question_had_explanation": "int8"
 }
 
+def indexing(tag,df):
+    tag_indexing = {v:k for k,v in enumerate(df[tag].unique())}
+    df[tag] = df[tag].map(tag_indexing)
+    return df
 
 def pre_process(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, split_ratio=0.9, seq_len=100):
     print("Start pre-process")
@@ -55,7 +59,7 @@ def pre_process(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, 
     test_df = pd.read_csv(test_path)
     train_df = pd.concat([train_df,test_df]).reset_index(drop=True)
     train_df.index = train_df.index.astype('uint32')
-
+    
     # get time_lag feature
     print("Start compute time_lag")
     time_dict = get_time_lag(train_df)
@@ -63,7 +67,10 @@ def pre_process(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, 
         pickle.dump(time_dict, pick)
     print("Complete compute time_lag")
     print("====================")
-    print(train_df)
+    train_df=indexing('assessmentItemID',train_df)
+    train_df=indexing('testId',train_df)
+    train_df=duration(train_df)
+    train_df=make_assess_ratio(train_df)
     # plus 1 for cat feature which starts from 0
     train_df["assessmentItemID"] += 1
     train_df["testId"] += 1
@@ -71,7 +78,7 @@ def pre_process(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, 
     # userID	assessmentItemID	answerCode	Timestamp	KnowledgeTag	elapsed	assessmentItemAverage	answerCode_mean
     # Train_features = ['userID','assessmentItemID','testId','time_lag','Timestamp','answerCode','KnowledgeTag','elapsed',]
     Train_features = ['userID', 'assessmentItemID', 'testId', 'time_lag', 'Timestamp', 'answerCode', 'KnowledgeTag',
-                      'elapsed', 'assessmentItemAverage', 'UserAverage']
+                      'duration', 'assess_ratio']
 
     if num_rows == -1:
         num_rows = train_df.shape[0]
@@ -102,9 +109,8 @@ def pre_process(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, 
         df["assessmentItemID"].values,
         df["testId"].values,
         df['time_lag'].values,
-        df["elapsed"].values,
-        df['assessmentItemAverage'].values,
-        df['UserAverage'].values,
+        df["duration"].values,
+        df['assess_ratio'].values,
         df["answerCode"].values
     ))
     with open("train_group95.pkl.zip", 'wb') as pick:
@@ -115,9 +121,8 @@ def pre_process(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, 
         df["assessmentItemID"].values,
         df["testId"].values,
         df['time_lag'].values,
-        df["elapsed"].values,
-        df['assessmentItemAverage'].values,
-        df['UserAverage'].values,
+        df["duration"].values,
+        df['assess_ratio'].values,
         df["answerCode"].values
     ))
     with open("val_group95.pkl.zip", 'wb') as pick:
@@ -146,7 +151,7 @@ def pre_process2(train_path, ques_path, row_start=30e6, num_rows=30e6, split_rat
     train_df["answerCode"] += 1
 
     Train_features = ['userID', 'assessmentItemID', 'testId', 'time_lag', 'Timestamp', 'answerCode', 'KnowledgeTag',
-                      'elapsed', 'assessmentItemAverage', 'UserAverage']
+                      'duration', 'assess_ratio']
 
     if num_rows == -1:
         num_rows = train_df.shape[0]
@@ -176,9 +181,8 @@ def pre_process2(train_path, ques_path, row_start=30e6, num_rows=30e6, split_rat
         df["assessmentItemID"].values,
         df["testId"].values,
         df['time_lag'].values,
-        df["elapsed"].values,
-        df['assessmentItemAverage'].values,
-        df['UserAverage'].values,
+        df["duration"].values,
+        df['assess_ratio'].values,
         df["answerCode"].values
     ))
     with open("fianl_sub_train_group.pkl.zip", 'wb') as pick:
@@ -189,9 +193,8 @@ def pre_process2(train_path, ques_path, row_start=30e6, num_rows=30e6, split_rat
         df["assessmentItemID"].values,
         df["testId"].values,
         df['time_lag'].values,
-        df["elapsed"].values,
-        df['assessmentItemAverage'].values,
-        df['UserAverage'].values,
+        df["duration"].values,
+        df['assess_ratio'].values,
         df["answerCode"].values
     ))
     with open("fianl_sub_val_group.pkl.zip", 'wb') as pick:

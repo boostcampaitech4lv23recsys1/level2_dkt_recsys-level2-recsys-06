@@ -1,2 +1,10 @@
 */__pycache__
+*/*.zip
+*/*.pt
+__pycache__
+.ipynb_checkpoints
 boosting.ipynb
+.git
+.github
+docs
+README.md
