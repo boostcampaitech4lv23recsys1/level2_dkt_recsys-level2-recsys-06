@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 import tqdm
 from sklearn.preprocessing import LabelEncoder
+from collections import defaultdict
 
 
 class Preprocess:
@@ -79,6 +80,9 @@ class Preprocess:
 
     def __feature_engineering(self, df):
         # TODO
+        """
+        Make duration feature
+        """
         df = df.sort_values(by=['userID', 'Timestamp']).reset_index(drop=True)
         df['Timestamp'] = pd.to_datetime(df['Timestamp'])
         df['months'] = df['Timestamp'].dt.month
@@ -91,6 +95,21 @@ class Preprocess:
         indexes = df[df['duration'] > 1200].index
         df.loc[indexes, 'duration'] = 1200
 
+        """
+        Make assess_ratio feature
+        """
+        with open("/opt/ml/output/asset/grouped_dict.pkl", "rb") as f:
+            grouped_dict = pickle.load(f)
+        
+        ratio_dict = defaultdict(int)
+        assess_keys = list(set([x[0] for x in grouped_dict.keys()]))
+        for key in assess_keys:
+            right = grouped_dict[(key, 1)]
+            wrong = grouped_dict[(key, 0)]
+            ratio = right / (right + wrong)
+            ratio_dict[key] = ratio
+
+        df['ratio'] = df['assessmentItemID'].map(ratio_dict)
         return df
 
     def load_data_from_file(self, file_name, is_train=True):
