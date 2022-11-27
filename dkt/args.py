@@ -5,12 +5,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--seed", default=42, type=int, help="seed")
-
+    parser.add_argument("--valid_mode", default="kfold", type=str, help="random, kfold")
+    parser.add_argument("--group_mode", default="userid_with_testid", type=str, help="userid, userid_with_testid")
     parser.add_argument("--device", default="gpu", type=str, help="cpu or gpu")
 
     parser.add_argument("--data_dir", default="/opt/ml/input/", type=str, help="data directory")
     parser.add_argument("--asset_dir", default="/opt/ml/output/asset/", type=str, help="data directory")
-    parser.add_argument("--file_name", default="train_data.csv", type=str, help="train file name")
+    parser.add_argument("--train_file_name", default="train_data.csv", type=str, help="train file name")
 
     parser.add_argument("--model_dir", default="/opt/ml/output/weight/", type=str, help="model directory")
     parser.add_argument("--model_name", default="model.pt", type=str, help="model file name")
@@ -31,7 +32,7 @@ def parse_args():
     parser.add_argument("--n_epochs", default=20, type=int, help="number of epochs")
     parser.add_argument("--batch_size", default=64, type=int, help="batch size")
     parser.add_argument("--lr", default=3e-4, type=float, help="learning rate")
-    parser.add_argument("--clip_grad", default=10, type=int, help="clip grad")
+    parser.add_argument("--clip_grad", default=1, type=int, help="clip grad")
     parser.add_argument("--patience", default=3, type=int, help="for early stopping")
 
     parser.add_argument( "--log_steps", default=50, type=int, help="print log per n steps")

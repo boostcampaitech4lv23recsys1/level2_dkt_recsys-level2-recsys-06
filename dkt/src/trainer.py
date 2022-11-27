@@ -3,7 +3,6 @@ import os
 
 import torch
 import torch.nn.functional as F
-import wandb
 
 from .criterion import get_criterion
 from .dataloader import get_loaders
@@ -13,7 +12,7 @@ from .optimizer import get_optimizer
 from .scheduler import get_scheduler
 
 
-def run(args, train_data, valid_data, model):
+def run(args, train_data, valid_data, model, fold_num):
     train_loader, valid_loader = get_loaders(args, train_data, valid_data)
 
     # only when using warmup scheduler
@@ -39,19 +38,9 @@ def run(args, train_data, valid_data, model):
         ### VALID
         auc, acc = validate(valid_loader, model, args)
 
-        ### TODO: model save or early stopping
-        wandb.log(
-            {
-                "epoch": epoch,
-                "train_loss_epoch": train_loss,
-                "train_auc_epoch": train_auc,
-                "train_acc_epoch": train_acc,
-                "valid_auc_epoch": auc,
-                "valid_acc_epoch": acc,
-            }
-        )
         if auc > best_auc:
             best_auc = auc
+            best_acc = acc
             # torch.nn.DataParallel로 감싸진 경우 원래의 model을 가져옵니다.
             model_to_save = model.module if hasattr(model, "module") else model
             save_checkpoint(
@@ -60,6 +49,7 @@ def run(args, train_data, valid_data, model):
                     "state_dict": model_to_save.state_dict(),
                 },
                 args.model_dir,
+                fold_num,
                 "model.pt",
             )
             early_stopping_counter = 0
@@ -75,6 +65,7 @@ def run(args, train_data, valid_data, model):
         if args.scheduler == "plateau":
             scheduler.step(best_auc)
 
+    return best_auc, best_acc
 
 def train(train_loader, model, optimizer, scheduler, args):
     model.train()
@@ -151,20 +142,13 @@ def inference(args, test_data, model):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
 
         preds = model(input)
-        #TODO sigmoid
         preds = F.sigmoid(preds)
         # predictions
         preds = preds[:, -1]
         preds = preds.cpu().detach().numpy()
         total_preds += list(preds)
 
-    write_path = os.path.join(args.output_dir, "submission.csv")
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
-    with open(write_path, "w", encoding="utf8") as w:
-        w.write("id,prediction\n")
-        for id, p in enumerate(total_preds):
-            w.write("{},{}\n".format(id, p))
+    return total_preds
 
 
 def get_model(args):
@@ -230,16 +214,17 @@ def update_params(loss, model, optimizer, scheduler, args):
     optimizer.zero_grad()
 
 
-def save_checkpoint(state, model_dir, model_filename):
+def save_checkpoint(state, model_dir, fold_num, model_filename):
     print("saving model ...")
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-    torch.save(state, os.path.join(model_dir, model_filename))
+    torch.save(state, os.path.join(model_dir, f"fold_{fold_num}", model_filename))
 
 
-def load_model(args):
+def load_model(args, fold_num):
 
-    model_path = os.path.join(args.model_dir, args.model_name)
+    # model_path = os.path.join(args.model_dir, args.model_name)
+    model_path = os.path.join(args.model_dir, f"fold_{fold_num}", args.model_name)
     print("Loading Model from:", model_path)
     load_state = torch.load(model_path)
     model = get_model(args)

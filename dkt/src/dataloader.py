@@ -5,6 +5,8 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import pickle
+
 import torch
 import tqdm
 from sklearn.preprocessing import LabelEncoder
@@ -36,19 +38,42 @@ class Preprocess:
     def get_test_data(self):
         return self.test_data
 
-    def split_data(self, data, ratio=0.7, shuffle=True, seed=0):
-        """
-        split data into two parts with a given ratio.
-        """
-        if shuffle:
-            random.seed(seed)  # fix to default seed 0
-            random.shuffle(data)
+    def concat_for_train(self, data, is_valid):
+        data_for_train_list = list()
+        dataset_list = list()
+        if is_valid:
+            for idx in range(len(data)):
+                if data[idx][-1][-1] == 1:
+                    dataset_list.append(idx)
+                else:
+                    data_for_train_list.append(idx)
+        else:
+            for idx in range(len(data)):
+                if data[idx][-2][-1] == -1:
+                    dataset_list.append(idx)
+                else:
+                    data_for_train_list.append(idx)
+        data_for_train = data[data_for_train_list]
+        dataset = data[dataset_list]
 
-        size = int(len(data) * ratio)
-        data_1 = data[:size]
-        data_2 = data[size:]
+        return data_for_train, dataset
 
-        return data_1, data_2
+    def split_data(self, train_data, test_data, train_idx, valid_idx):
+        """
+        user별 random split
+        """
+        trainset = train_data[train_idx]
+        valid_data = train_data[valid_idx]
+        if self.args.group_mode == 'userid_with_testid':
+            valid_for_train, validset = self.concat_for_train(valid_data, True)
+            test_for_train, testset = self.concat_for_train(test_data, False)
+            trainset = np.append(trainset, valid_for_train)
+            trainset = np.append(trainset, test_for_train)
+            print(f"[DATA FOR TRAINSET LENGTH] valid_for_train shape: {valid_for_train.shape}, test_for_train shape: {test_for_train.shape}")
+        else:
+            validset = valid_data                
+
+        return trainset, validset
 
     def __save_labels(self, encoder, name):
         le_path = os.path.join(self.args.asset_dir, name + "_classes.npy")
@@ -81,13 +106,13 @@ class Preprocess:
             test = le.transform(df[col])
             df[col] = test
 
-        def convert_time(s):
-            timestamp = time.mktime(
-                datetime.strptime(s, "%Y-%m-%d %H:%M:%S").timetuple()
-            )
-            return int(timestamp)
+        # def convert_time(s):
+        #     timestamp = time.mktime(
+        #         datetime.strptime(s, "%Y-%m-%d %H:%M:%S").timetuple()
+        #     )
+        #     return int(timestamp)
 
-        df["Timestamp"] = df["Timestamp"].apply(convert_time)
+        # df["Timestamp"] = df["Timestamp"].apply(convert_time)
 
         return df
 
@@ -127,14 +152,17 @@ class Preprocess:
             ratio = right / (right + wrong)
             ratio_dict[key] = ratio
 
-        df['ratio'] = df['assessmentItemID'].map(ratio_dict)
+        df['assess_ratio'] = df['assessmentItemID'].map(ratio_dict)
         return df
 
     def load_data_from_file(self, file_name, is_train=True):
+        stime = time.time()
         csv_file_path = os.path.join(self.args.data_dir, file_name)
         df = pd.read_csv(csv_file_path)  # , nrows=100000)
         df = self.__feature_engineering(df, is_train)
+        print(f"[FEATURE ENGINEERIN RESULT]\n {df.sample(3)} \n\n")
         df = self.__preprocessing(df, is_train)
+
 
         # 추후 feature를 embedding할 시에 embedding_layer의 input 크기를 결정할때 사용
 
@@ -143,9 +171,18 @@ class Preprocess:
         self.args.n_tag = len(np.load(os.path.join(self.args.asset_dir, "KnowledgeTag_classes.npy")))
 
         df = df.sort_values(by=["userID", "Timestamp"], axis=0)
-        columns = ["userID", "assessmentItemID", "testId", "answerCode", "KnowledgeTag"]
-        group = (df[columns].groupby("userID").apply(lambda x: (x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x["answerCode"].values)))
+        df['check_userid'] = df['userID'].shift(-1)
+        df['check'] = np.where(df['userID'] != df['check_userid'], 1, 0)
+        columns = ["userID", "assessmentItemID", "testId", "KnowledgeTag", 'duration', 'assess_ratio', "answerCode", 'check']
+        print(f"[DATAFRAME RESULT]\n {df.sample(3)} \n\n")
 
+
+        # TODO column을 변경할거면 여기서 변경할 수 있다.
+        if self.args.group_mode == 'userid':
+            group = (df[columns].groupby("userID").apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values)))
+        elif self.args.group_mode == 'userid_with_testid':
+            group = (df[columns].groupby(["userID", "testId"]).apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values)))
+        print(f"[PROCESS TIME]: {time.time() - stime}sec \n\n\n")
         return group.values
 
     def load_train_data(self, file_name):
@@ -165,9 +202,14 @@ class DKTDataset(torch.utils.data.Dataset):
 
         # 각 data의 sequence length
         seq_len = len(row[0])
+        #TODO user id를 추가해야하나?
+        userid, test, question, tag, duration, assess_ratio, correct = row[0], row[1], row[2], row[3], row[4], row[5], row[6]
 
-        test, question, tag, correct = row[0], row[1], row[2], row[3]
-
+        # TODO 왜 category?
+        """
+        그냥 cols로 이름 바꿔도 되겠는데? category만을 위한 columns들은 아님. 베이스라인에서는 category만 존재하긴 했다.
+        category로 이름 두면 헷갈리잖아.
+        """
         cate_cols = [test, question, tag, correct]
 
         # max seq len을 고려하여서 이보다 길면 자르고 아닐 경우 그대로 냅둔다
