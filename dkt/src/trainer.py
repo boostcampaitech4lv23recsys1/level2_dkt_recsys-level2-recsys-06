@@ -1,8 +1,10 @@
 import math
 import os
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
+import tqdm
 
 from .criterion import get_criterion
 from .dataloader import get_loaders
@@ -73,7 +75,8 @@ def train(train_loader, model, optimizer, scheduler, args):
     total_preds = []
     total_targets = []
     losses = []
-    for step, batch in enumerate(train_loader):
+    tk0 = tqdm.tqdm(train_loader, desc = "TRAINING", smoothing=0, mininterval=1.0)
+    for step, batch in enumerate(tk0):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
         preds = model(input)
         targets = input[3]  # correct
@@ -81,8 +84,8 @@ def train(train_loader, model, optimizer, scheduler, args):
         loss = compute_loss(preds, targets)
         update_params(loss, model, optimizer, scheduler, args)
 
-        if step % args.log_steps == 0:
-            print(f"Training steps: {step} Loss: {str(loss.item())}")
+        # if step % args.log_steps == 0:
+        #     print(f"Training steps: {step} Loss: {str(loss.item())}")
 
         # predictions
         preds = preds[:, -1]
@@ -107,6 +110,7 @@ def validate(valid_loader, model, args):
 
     total_preds = []
     total_targets = []
+    tk0 = tqdm.tqdm(valid_loader, desc = "VALIDATION", smoothing=0, mininterval=1.0)
     for step, batch in enumerate(valid_loader):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
 
@@ -198,6 +202,8 @@ def compute_loss(preds, targets):
 
     """
     loss = get_criterion(preds, targets)
+    # print(f"[preds & targets.shape SHAPE]: \n{preds.shape}, {targets.shape}, loss: {loss.shape}")
+
 
     # 마지막 시퀀드에 대한 값만 loss 계산
     loss = loss[:, -1]
@@ -208,17 +214,17 @@ def compute_loss(preds, targets):
 def update_params(loss, model, optimizer, scheduler, args):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad)
+    optimizer.step()
     if args.scheduler == "linear_warmup":
         scheduler.step()
-    optimizer.step()
     optimizer.zero_grad()
 
 
 def save_checkpoint(state, model_dir, fold_num, model_filename):
     print("saving model ...")
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-    torch.save(state, os.path.join(model_dir, f"fold_{fold_num}", model_filename))
+    ppath = Path(os.path.join(model_dir, f"fold_{fold_num}", model_filename))
+    ppath.parent.mkdir(parents = True, exist_ok = True)
+    torch.save(state, str(ppath))
 
 
 def load_model(args, fold_num):
