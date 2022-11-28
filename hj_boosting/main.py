@@ -65,7 +65,7 @@ if __name__ == "__main__":
     arg = parser.add_argument
 
     ############### BASIC OPTION
-    arg('--DATA_PATH', type=str, default='opt/ml/input/', help='Data path를 설정할 수 있습니다.')
+    arg('--DATA_PATH', type=str, default='/opt/ml/input/', help='Data path를 설정할 수 있습니다.')
     arg('--MODEL', type=str, choices=['LGBM', 'CATBOOST'],
                                 help='LGBM, CATBOOST 중에서 선택하세요.')
     arg('--DATA_SHUFFLE', type=bool, default=True, help='데이터 셔플 여부를 조정할 수 있습니다.')
