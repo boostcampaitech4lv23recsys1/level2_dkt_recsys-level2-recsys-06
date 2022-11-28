@@ -5,7 +5,6 @@
 ### Directories ###
 PaxHeader/
 submit/
-data/
 catboost_info/
 
 ### macOS ###
