@@ -4,7 +4,7 @@ import pandas as pd
 
 from src.utils import seed_everything
 
-from src.data.boost_data import boost_data_load
+from src.data_load.boost_data import boost_data_load
 from src.models.boost_models import LightGBM, CatBoost
 
 
