@@ -1,11 +1,11 @@
 import random
 import time
 from datetime import datetime
-from collections import defaultdict
+import pandas as pd
 import pickle
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 def get_time_lag(df):
     """
@@ -39,23 +39,47 @@ def duration(df):
     df['ts'] = df['Timestamp'].map(pd.Timestamp.timestamp)
     df['prev_ts'] = df.groupby(['userID', 'testId', 'months','days'])['ts'].shift(1)
     df["prev_ts"] = df["prev_ts"].fillna(0)
-    df["duration"] = np.where(df["prev_ts"] == 0, 0, df["ts"] - df["prev_ts"])
+    df["elapsed"] = np.where(df["prev_ts"] == 0, 0, df["ts"] - df["prev_ts"])
 
-    indexes = df[df['duration'] > 1200].index
-    df.loc[indexes, 'duration'] = 1200
+    indexes = df[df['elapsed'] > 1200].index
+    df.loc[indexes, 'elapsed'] = 1200
     df = df.drop(['months','days','ts','prev_ts'],axis='columns')
     return df
 
 def make_assess_ratio(df):
     ratio_dict = defaultdict(float)
-    df = df[df['answerCode'] != -1]
     grouped_dict = dict(df.groupby('assessmentItemID')['answerCode'].value_counts())
     assess_keys = list(set([x[0] for x in grouped_dict.keys()]))
     for key in assess_keys:
-        right = grouped_dict[(key, 1)]
-        wrong = grouped_dict[(key, 0)]
+        if grouped_dict.get((key, 1)):
+            right = grouped_dict[(key, 1)]
+        else:
+            right=0
+        if grouped_dict.get((key, 0)):
+            wrong = grouped_dict[(key, 0)]
+        else:
+            wrong = 0
         ratio = right / (right + wrong)
         ratio_dict[key] = ratio
 
-    df['assess_ratio'] = df['assessmentItemID'].map(ratio_dict)
+    df['assessmentItemAverage'] = df['assessmentItemID'].map(ratio_dict)
+    return df
+
+def make_user_ratio(df):
+    ratio_dict = defaultdict(float)
+    grouped_dict = dict(df.groupby('userID')['answerCode'].value_counts())
+    user_keys = list(set([x[0] for x in grouped_dict.keys()]))
+    for key in user_keys:
+        if grouped_dict.get((key, 1)):
+            right = grouped_dict[(key, 1)]
+        else:
+            right=0
+        if grouped_dict.get((key, 0)):
+            wrong = grouped_dict[(key, 0)]
+        else:
+            wrong = 0
+        ratio = right / (right + wrong)
+        ratio_dict[key] = ratio
+
+    df['UserAverage'] = df['userID'].map(ratio_dict)
     return df
