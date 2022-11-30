@@ -39,7 +39,69 @@ def indexing(tag,df):
     df[tag] = df[tag].map(tag_indexing)
     return df
 
-def pre_process_train(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, split_ratio=0.9, seq_len=100):
+def feature_engineering(train_df):
+    print("Start feature-engineering")
+    t_s = time.time()
+    train_df.index = train_df.index.astype('uint32')
+    # get time_lag feature
+    print("Start compute time_lag")
+    time_dict = get_time_lag(train_df)
+    with open("time_dict95.pkl.zip", 'wb') as pick:
+        pickle.dump(time_dict, pick)
+    print("Complete compute time_lag")
+    print("====================")
+    train_df = duration(train_df)
+    total_df = make_assess_ratio(train_df)
+    total_df = make_user_ratio(train_df)
+    train_df=indexing('assessmentItemID',train_df)
+    train_df=indexing('testId',train_df)
+    train_df["assessmentItemID"] += 1
+    train_df["testId"] += 1
+    train_df["answerCode"] += 1
+    print("Complete feature-engineering, execution time {:.2f} s".format(time.time() - t_s))
+    return train_df
+
+def kfold_preprocess(train_df,val_df,Train_features):
+    t_s = time.time()
+    num_new_user = val_df[~val_df["userID"].isin(train_df["userID"])]["userID"].nunique()
+    num_new_content = val_df[~val_df["assessmentItemID"].isin(train_df["assessmentItemID"])][
+        "assessmentItemID"].nunique()
+    train_content_id = train_df["assessmentItemID"].nunique()
+    train_correct = train_df["answerCode"].mean() - 1
+    val_correct = val_df["answerCode"].mean() - 1
+
+    print("Number of new users {}/ Number of new contents {}".format(num_new_user, num_new_content))
+    print("Number of content_id {}".format(train_content_id))
+    print("train correctness {:.3f}/val correctness {:.3f}".format(train_correct, val_correct))
+    print("====================")
+
+    print("Start train and Val grouping")
+    train_group = train_df[Train_features].groupby("userID").apply(lambda df: (
+        df["assessmentItemID"].values,
+        df["testId"].values,
+        df['time_lag'].values,
+        df["elapsed"].values,
+        df['assessmentItemAverage'].values,
+        df['UserAverage'].values,
+        df["answerCode"].values
+    ))
+    with open("train_group95.pkl.zip", 'wb') as pick:
+        pickle.dump(train_group, pick)
+    del train_group, train_df
+
+    val_group = val_df[Train_features].groupby("userID").apply(lambda df: (
+        df["assessmentItemID"].values,
+        df["testId"].values,
+        df['time_lag'].values,
+        df["elapsed"].values,
+        df['assessmentItemAverage'].values,
+        df['UserAverage'].values,
+        df["answerCode"].values
+    ))
+    with open("val_group95.pkl.zip", 'wb') as pick:
+        pickle.dump(val_group, pick)
+
+def pre_process_train(train_df,test_df, ques_path, row_start=30e6, num_rows=30e6, split_ratio=0.9, seq_len=100):
     print("Start pre-process")
     t_s = time.time()
 
@@ -56,9 +118,6 @@ def pre_process_train(train_path,test_path, ques_path, row_start=30e6, num_rows=
     # prior_questio_elapsed_time => elapsed
     # prior_question_had_explanation => X
     # viretual_time_stamp => X
-    train_df = pd.read_csv(train_path)
-    test_df=pd.read_csv(test_path)
-    train_df = pd.concat([train_df,test_df]).reset_index(drop=True)
     train_df.index = train_df.index.astype('uint32')
     # get time_lag feature
     print("Start compute time_lag")
@@ -80,7 +139,7 @@ def pre_process_train(train_path,test_path, ques_path, row_start=30e6, num_rows=
     # Train_features = ['userID','assessmentItemID','testId','time_lag','Timestamp','answerCode','KnowledgeTag','elapsed',]
     Train_features = ['userID', 'assessmentItemID', 'testId', 'time_lag', 'Timestamp', 'answerCode', 'KnowledgeTag',
                       'elapsed', 'assessmentItemAverage', 'UserAverage']
-
+    print(num_rows)
     if num_rows == -1:
         num_rows = train_df.shape[0]
     train_df = train_df.iloc[int(row_start):int(row_start + num_rows)]
@@ -133,12 +192,10 @@ def pre_process_train(train_path,test_path, ques_path, row_start=30e6, num_rows=
     print("Complete pre-process, execution time {:.2f} s".format(time.time() - t_s))
 
 
-def pre_process_validation(train_path,test_path, ques_path, row_start=30e6, num_rows=30e6, split_ratio=0.9, seq_len=100):
+def pre_process_validation(train_df,other_df, ques_path, row_start=30e6, num_rows=30e6, split_ratio=0.9, seq_len=100):
     print("Start pre-process")
     t_s = time.time()
 
-    train_df = pd.read_csv(test_path)
-    other_df=pd.read_csv(train_path)
     total_df = pd.concat([train_df,other_df]).reset_index(drop=True)
     train_df.index = train_df.index.astype('uint32')
 
@@ -212,10 +269,11 @@ def pre_process_validation(train_path,test_path, ques_path, row_start=30e6, num_
         pickle.dump(val_group, pick)
     print("Complete pre-process, execution time {:.2f} s".format(time.time() - t_s))
 
-
 if __name__ == "__main__":
     train_path = '/opt/ml/input/data/train_data.csv'
     test_path = '/opt/ml/input/data/test_data.csv'
+    train_df = pd.read_csv(train_path)
+    test_df=pd.read_csv(test_path)
     ques_path = ''
-    pre_process_train(train_path,test_path, ques_path, 0, -1, 0.95)
-    pre_process_validation(train_path,test_path,ques_path,0,-1,0)
+    pre_process_train(train_df,test_df, ques_path, 0, -1, 0.95)
+    pre_process_validation(test_df,train_df,ques_path,0,-1,0)
