@@ -114,7 +114,7 @@ class CatBoost:
     def train(self):
         kf = KFold(n_splits = self.n_splits, shuffle=self.shuffle, random_state=self.random_state)
         
-        categorical_features = ['month', 'test_front', 'KnowledgeTag']
+        categorical_features = ['month', 'test_front', 'KnowledgeTag', 'userID', 'assessmentItemID']
 
         # 이후 args로 고쳐보기
         params = {'iterations':100, 'learning_rate':0.3, 'depth':10, 'eval_metric':'AUC'}

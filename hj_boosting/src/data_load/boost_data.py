@@ -78,6 +78,8 @@ def process_boost_data(df):
     f_df['KnowledgeTag'] = f_df['KnowledgeTag'].astype('category')
     f_df['test_front'] = f_df['test_front'].astype('category')
     f_df['month'] = f_df['month'].astype('category')
+    f_df['userID'] = f_df['userID'].astype('category')
+    f_df['assessmentItemID'] = f_df['assessmentItemID'].astype('category')
 
     f_df.dtypes
     
