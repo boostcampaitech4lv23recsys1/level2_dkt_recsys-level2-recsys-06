@@ -20,9 +20,11 @@ def main(args):
 
     train_data, valid_data = preprocess.split_data(train_data)
 
-    wandb.init(project="dkt", config=vars(args))
+    wandb.init(project="dkt", name=f"{args.model}_{args.hidden_dim}_{args.max_seq_len}", config=vars(args))
     model = trainer.get_model(args).to(args.device)
+
     trainer.run(args, train_data, valid_data, model)
+
 
 
 if __name__ == "__main__":

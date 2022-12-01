@@ -7,7 +7,7 @@ import wandb
 from .criterion import get_criterion
 from .dataloader import get_loaders
 from .metric import get_metric
-from .model import LSTM, LSTMATTN, Bert
+from .model import LSTM, LSTMATTN, Bert, last_query_model
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
 
@@ -59,7 +59,7 @@ def run(args, train_data, valid_data, model):
                     "state_dict": model_to_save.state_dict(),
                 },
                 args.model_dir,
-                "model.pt",
+                f"{args.model}_{args.hidden_dim}_{args.max_seq_len}.pt",
             )
             early_stopping_counter = 0
         else:
@@ -87,6 +87,7 @@ def train(train_loader, model, optimizer, scheduler, args):
         targets = input[3]  # correct
 
         loss = compute_loss(preds, targets)
+
         update_params(loss, model, optimizer, scheduler, args)
 
         if step % args.log_steps == 0:
@@ -153,10 +154,11 @@ def inference(args, test_data, model):
 
         # predictions
         preds = preds[:, -1]
+        preds = torch.nn.Sigmoid()(preds)
         preds = preds.cpu().detach().numpy()
         total_preds += list(preds)
 
-    write_path = os.path.join(args.output_dir, "submission.csv")
+    write_path = os.path.join(args.output_dir, f"{args.model}_{args.hidden_dim}_{args.max_seq_len}.csv")
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
     with open(write_path, "w", encoding="utf8") as w:
@@ -175,6 +177,8 @@ def get_model(args):
         model = LSTMATTN(args)
     if args.model == "bert":
         model = Bert(args)
+    if args.model == "lastqt":
+        model = last_query_model(args)
 
     return model
 
@@ -182,7 +186,7 @@ def get_model(args):
 # 배치 전처리
 def process_batch(batch):
 
-    test, question, tag, correct, mask = batch
+    test, question, tag, correct, duration, mask = batch
 
     # change to float
     mask = mask.float()
@@ -199,8 +203,9 @@ def process_batch(batch):
     test = ((test + 1) * mask).int()
     question = ((question + 1) * mask).int()
     tag = ((tag + 1) * mask).int()
+    duration = ((duration + 1) * mask).int()
 
-    return (test, question, tag, correct, mask, interaction)
+    return (test, question, tag, correct, mask, interaction, duration)
 
 
 # loss계산하고 parameter update!
@@ -214,7 +219,9 @@ def compute_loss(preds, targets):
     loss = get_criterion(preds, targets)
 
     # 마지막 시퀀드에 대한 값만 loss 계산
-    loss = loss[:, -1]
+    loss1 = loss[:, -1]
+    loss2 = loss[:, -10]
+    loss = loss1+loss2
     loss = torch.mean(loss)
     return loss
 
@@ -237,7 +244,7 @@ def save_checkpoint(state, model_dir, model_filename):
 
 def load_model(args):
 
-    model_path = os.path.join(args.model_dir, args.model_name)
+    model_path = os.path.join(args.model_dir, args.model+"_"+str(args.hidden_dim)+"_"+str(args.max_seq_len)+".pt")
     print("Loading Model from:", model_path)
     load_state = torch.load(model_path)
     model = get_model(args)

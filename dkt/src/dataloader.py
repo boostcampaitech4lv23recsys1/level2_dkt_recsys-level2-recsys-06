@@ -2,6 +2,7 @@ import os
 import random
 import time
 from datetime import datetime
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -81,9 +82,45 @@ class Preprocess:
         # TODO
         return df
 
+    def make_duration_feature(self,df):
+        df = df.sort_values(by=['userID', 'Timestamp']).reset_index(drop=True)
+        df['_Timestamp'] = pd.to_datetime(df['Timestamp'])
+        df['months'] = df['_Timestamp'].dt.month
+        df['days'] = df['_Timestamp'].dt.day
+        df['ts'] = df['_Timestamp'].map(pd.Timestamp.timestamp)
+        df['prev_ts'] = df.groupby(['userID', 'testId', 'months','days'])['ts'].shift(1)
+        df["prev_ts"] = df["prev_ts"].fillna(0)
+        df["duration"] = np.where(df["prev_ts"] == 0, 0, df["ts"] - df["prev_ts"])
+
+        indexes = df[df['duration'] > 1200].index
+        df.loc[indexes, 'duration'] = 1200
+
+        return df
+
+    def make_assess_ratio(self, train_df, test_df):
+        ratio_dict = defaultdict(float)
+        total_df = pd.concat([train_df, test_df], axis = 0)
+        total_df = total_df[total_df['answerCode'] != -1]
+        grouped_dict = dict(total_df.groupby('assessmentItemID')['answerCode'].value_counts())
+        grouped_dict
+        assess_keys = list(set([x[0] for x in grouped_dict.keys()]))
+        for key in assess_keys:
+            right = grouped_dict[(key, 1)]
+            wrong = grouped_dict[(key, 0)]
+            ratio = right / (right + wrong)
+            ratio_dict[key] = ratio
+
+        train_df['ratio'] = train_df['assessmentItemID'].map(ratio_dict)
+        test_df['ratio'] = test_df['assessmentItemID'].map(ratio_dict)
+
+        return train_df, test_df
+
+
     def load_data_from_file(self, file_name, is_train=True):
         csv_file_path = os.path.join(self.args.data_dir, file_name)
         df = pd.read_csv(csv_file_path)  # , nrows=100000)
+
+        df = self.make_duration_feature(df)
         df = self.__feature_engineering(df)
         df = self.__preprocessing(df, is_train)
 
@@ -100,7 +137,7 @@ class Preprocess:
         )
 
         df = df.sort_values(by=["userID", "Timestamp"], axis=0)
-        columns = ["userID", "assessmentItemID", "testId", "answerCode", "KnowledgeTag"]
+        columns = ["userID", "assessmentItemID", "testId", "answerCode", "KnowledgeTag", "duration"]
         group = (
             df[columns]
             .groupby("userID")
@@ -110,6 +147,7 @@ class Preprocess:
                     r["assessmentItemID"].values,
                     r["KnowledgeTag"].values,
                     r["answerCode"].values,
+                    r["duration"].values,
                 )
             )
         )
@@ -134,14 +172,15 @@ class DKTDataset(torch.utils.data.Dataset):
         # 각 data의 sequence length
         seq_len = len(row[0])
 
-        test, question, tag, correct = row[0], row[1], row[2], row[3]
+        test, question, tag, correct, duration = row[0], row[1], row[2], row[3], row[4]
 
-        cate_cols = [test, question, tag, correct]
+        cate_cols = [test, question, tag, correct, duration]
 
         # max seq len을 고려하여서 이보다 길면 자르고 아닐 경우 그대로 냅둔다
         if seq_len > self.args.max_seq_len:
             for i, col in enumerate(cate_cols):
                 cate_cols[i] = col[-self.args.max_seq_len :]
+            
             mask = np.ones(self.args.max_seq_len, dtype=np.int16)
         else:
             mask = np.zeros(self.args.max_seq_len, dtype=np.int16)
@@ -153,6 +192,7 @@ class DKTDataset(torch.utils.data.Dataset):
         # np.array -> torch.tensor 형변환
         for i, col in enumerate(cate_cols):
             cate_cols[i] = torch.tensor(col)
+        
 
         return cate_cols
 
