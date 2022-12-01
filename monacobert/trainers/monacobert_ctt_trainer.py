@@ -350,7 +350,7 @@ class MonaCoBERT_CTT_Trainer():
             # early stop
             train_scores_avg = np.average(train_scores)
             valid_scores_avg = np.average(valid_scores)
-            early_stopping(valid_scores_avg, self.model)
+            early_stopping(valid_scores, self.model)
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
@@ -358,8 +358,8 @@ class MonaCoBERT_CTT_Trainer():
             print("Epoch(%d/%d) result: train_score=%.4f  valid_score=%.4f" % (
                 epoch_index + 1,
                 self.n_epochs,
-                train_score,
-                valid_score,
+                train_scores,
+                valid_scores,
             ))
 
         # Test Session
