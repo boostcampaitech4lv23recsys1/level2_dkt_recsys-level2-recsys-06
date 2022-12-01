@@ -1,6 +1,6 @@
 import os
 import numpy as np
-
+import pickle
 import torch
 from args import parse_args
 from src import trainer
@@ -12,7 +12,10 @@ def main(args):
     
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
     preprocess = Preprocess(args)
+    with open(os.path.join(args.asset_dir, "preprocess.pckl"), "rb") as f:
+        preprocess.duration_normalizer = pickle.load(f)
     preprocess.load_test_data(args.test_file_name)
+
     test_data = preprocess.get_test_data()
 
     if args.group_mode == 'userid_with_testid':
@@ -20,7 +23,7 @@ def main(args):
     else:
         testset = test_data
 
-    if args.kfold == 'kfold':
+    if args.valid_mode == 'kfold':
         for idx in range(5):
             fold_num = idx + 1
             model = trainer.load_model(args, fold_num).to(args.device)

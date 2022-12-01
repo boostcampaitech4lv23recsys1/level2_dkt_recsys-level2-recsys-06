@@ -69,7 +69,7 @@ class Preprocess:
             test_for_train, testset = self.concat_for_train(test_data, False)
             trainset = np.append(trainset, valid_for_train)
             trainset = np.append(trainset, test_for_train)
-            print(f"[DATA FOR TRAINSET LENGTH] valid_for_train shape: {valid_for_train.shape}, test_for_train shape: {test_for_train.shape}")
+            # print(f"[DATA FOR TRAINSET LENGTH] valid_for_train shape: {valid_for_train.shape}, test_for_train shape: {test_for_train.shape}")
         else:
             validset = valid_data                
 
@@ -204,31 +204,31 @@ class DKTDataset(torch.utils.data.Dataset):
         seq_len = len(row[0])
         #TODO user id를 추가해야하나?
         userid, test, question, tag, duration, assess_ratio, correct = row[0], row[1], row[2], row[3], row[4], row[5], row[6]
-
+        # print(f"[CORRECT IN DATA LOADER ] \n {correct}")
         # TODO 왜 category?
         """
         그냥 cols로 이름 바꿔도 되겠는데? category만을 위한 columns들은 아님. 베이스라인에서는 category만 존재하긴 했다.
         category로 이름 두면 헷갈리잖아.
         """
-        cate_cols = [test, question, tag, correct]
+        columns = [test, question, tag, duration, assess_ratio, correct]
 
         # max seq len을 고려하여서 이보다 길면 자르고 아닐 경우 그대로 냅둔다
         if seq_len > self.args.max_seq_len:
-            for i, col in enumerate(cate_cols):
-                cate_cols[i] = col[-self.args.max_seq_len :]
+            for i, col in enumerate(columns):
+                columns[i] = col[-self.args.max_seq_len :]
             mask = np.ones(self.args.max_seq_len, dtype=np.int16)
         else:
             mask = np.zeros(self.args.max_seq_len, dtype=np.int16)
             mask[-seq_len:] = 1
 
         # mask도 columns 목록에 포함시킴
-        cate_cols.append(mask)
+        columns.append(mask)
 
         # np.array -> torch.tensor 형변환
-        for i, col in enumerate(cate_cols):
-            cate_cols[i] = torch.tensor(col)
+        for i, col in enumerate(columns):
+            columns[i] = torch.tensor(col)
 
-        return cate_cols
+        return columns
 
     def __len__(self):
         return len(self.data)

@@ -9,7 +9,7 @@ import tqdm
 from .criterion import get_criterion
 from .dataloader import get_loaders
 from .metric import get_metric
-from .model import LSTM, LSTMATTN, Bert
+from .model import LSTM, LSTMATTN, Bert, ModifiedTransformer
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
 
@@ -34,11 +34,11 @@ def run(args, train_data, valid_data, model, fold_num):
 
         ### TRAIN
         train_auc, train_acc, train_loss = train(
-            train_loader, model, optimizer, scheduler, args
+            train_loader, model, optimizer, scheduler, args, fold_num
         )
 
         ### VALID
-        auc, acc = validate(valid_loader, model, args)
+        auc, acc = validate(valid_loader, model, args, fold_num)
 
         if auc > best_auc:
             best_auc = auc
@@ -59,7 +59,7 @@ def run(args, train_data, valid_data, model, fold_num):
             early_stopping_counter += 1
             if early_stopping_counter >= args.patience:
                 print(
-                    f"EarlyStopping counter: {early_stopping_counter} out of {args.patience}"
+                    f"EarlyStopping counter: {early_stopping_counter} out of {args.patience}, \n\n"
                 )
                 break
 
@@ -69,7 +69,7 @@ def run(args, train_data, valid_data, model, fold_num):
 
     return best_auc, best_acc
 
-def train(train_loader, model, optimizer, scheduler, args):
+def train(train_loader, model, optimizer, scheduler, args, fold_num):
     model.train()
 
     total_preds = []
@@ -79,9 +79,9 @@ def train(train_loader, model, optimizer, scheduler, args):
     for step, batch in enumerate(tk0):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
         preds = model(input)
-        targets = input[3]  # correct
+        targets = input[-3]  # correct
 
-        loss = compute_loss(preds, targets)
+        loss = compute_loss(preds, targets, args)
         update_params(loss, model, optimizer, scheduler, args)
 
         # if step % args.log_steps == 0:
@@ -101,11 +101,11 @@ def train(train_loader, model, optimizer, scheduler, args):
     # Train AUC / ACC
     auc, acc = get_metric(total_targets, total_preds)
     loss_avg = sum(losses) / len(losses)
-    print(f"TRAIN AUC : {auc} ACC : {acc}")
+    print(f"[FOLD - {fold_num}] TRAIN AUC : {auc} ACC : {acc}")
     return auc, acc, loss_avg
 
 
-def validate(valid_loader, model, args):
+def validate(valid_loader, model, args, fold_num):
     model.eval()
 
     total_preds = []
@@ -115,7 +115,7 @@ def validate(valid_loader, model, args):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
 
         preds = model(input)
-        targets = input[3]  # correct
+        targets = input[-3]  # correct
 
         # predictions
         preds = preds[:, -1]
@@ -130,7 +130,7 @@ def validate(valid_loader, model, args):
     # Train AUC / ACC
     auc, acc = get_metric(total_targets, total_preds)
 
-    print(f"VALID AUC : {auc} ACC : {acc}\n")
+    print(f"[FOLD - {fold_num}] VALID AUC : {auc} ACC : {acc}\n")
 
     return auc, acc
 
@@ -165,14 +165,16 @@ def get_model(args):
         model = LSTMATTN(args)
     if args.model == "bert":
         model = Bert(args)
+    if args.model == 'modifiedtf':
+        model = ModifiedTransformer(args)
 
     return model
 
 
 # 배치 전처리
 def process_batch(batch):
-
-    test, question, tag, correct, mask = batch
+    # print(f"[BATCH]:\n {batch}")
+    test, question, tag, duration, assess_ratio, correct, mask = batch
 
     # change to float
     mask = mask.float()
@@ -190,24 +192,30 @@ def process_batch(batch):
     question = ((question + 1) * mask).int()
     tag = ((tag + 1) * mask).int()
 
-    return (test, question, tag, correct, mask, interaction)
+    # print(f"[CORRECT IN PROCESS BATCH]: \n {correct}")
+    return (test, question, tag, duration, assess_ratio, correct, mask, interaction)
 
 
 # loss계산하고 parameter update!
-def compute_loss(preds, targets):
+def compute_loss(preds, targets, args):
     """
     Args :
         preds   : (batch_size, max_seq_len)
         targets : (batch_size, max_seq_len)
 
     """
-    loss = get_criterion(preds, targets)
-    # print(f"[preds & targets.shape SHAPE]: \n{preds.shape}, {targets.shape}, loss: {loss.shape}")
-
+    loss = get_criterion(preds, targets.float())
 
     # 마지막 시퀀드에 대한 값만 loss 계산
-    loss = loss[:, -1]
-    loss = torch.mean(loss)
+    if args.computing_loss == 'last':
+        loss = loss[:, -1]
+        loss = torch.mean(loss)
+    elif args.computing_loss == 'all':
+        loss = torch.sum(loss, dim = -1)
+        loss = torch.mean(loss)
+    elif args.computing_loss == 'custom':
+        loss_1 = torch.sum(loss[:, :-1], dim = -1)
+        loss = 0.5 * torch.mean(loss_1) + 0.5 * torch.mean(loss[:, -1])
     return loss
 
 

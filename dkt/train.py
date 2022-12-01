@@ -2,6 +2,7 @@ import os
 
 import torch
 import numpy as np
+import pickle
 from sklearn.model_selection import KFold, train_test_split
 
 from args import parse_args
@@ -19,6 +20,9 @@ def main(args):
     preprocess = Preprocess(args)
     preprocess.load_train_data(args.train_file_name)
     preprocess.load_test_data(args.test_file_name)
+    with open(os.path.join(args.asset_dir, "preprocess.pckl"), "wb") as f:
+        pickle.dump(preprocess.duration_normalizer, f)
+
     train_data = preprocess.get_train_data()
     test_data = preprocess.get_test_data()
 
