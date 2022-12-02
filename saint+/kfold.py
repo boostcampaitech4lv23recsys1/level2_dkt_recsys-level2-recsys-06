@@ -40,7 +40,7 @@ def user_indexing(train_data,train_idx,valid_idx,userby,feature):
 
 submission_list = []
 feature = ['userID', 'assessmentItemID', 'testId', 'time_lag', 'Timestamp', 'answerCode', 
-            'KnowledgeTag', 'elapsed', 'assessmentItemAverage', 'UserAverage']
+            'KnowledgeTag', 'elapsed', 'assessmentItemAverage','UserAverage','elo'] #'UserAverage'
 origin_feature=['userID', 'assessmentItemID', 'testId','Timestamp', 'answerCode','KnowledgeTag']
 train_path = "/opt/ml/input/data/train_data.csv"
 test_path = "/opt/ml/input/data/test_data.csv"

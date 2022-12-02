@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from utils import get_time_lag
-from utils import duration,make_assess_ratio,make_user_ratio
+from utils import duration,make_assess_ratio,make_user_ratio,elo
 
 """
 data is from kaggler: tito's strategy
@@ -51,8 +51,9 @@ def feature_engineering(train_df):
     print("Complete compute time_lag")
     print("====================")
     train_df = duration(train_df)
-    total_df = make_assess_ratio(train_df)
-    total_df = make_user_ratio(train_df)
+    train_df = make_assess_ratio(train_df)
+    train_df = make_user_ratio(train_df)
+    train_df = elo(train_df,'testId')
     train_df=indexing('assessmentItemID',train_df)
     train_df=indexing('testId',train_df)
     train_df["assessmentItemID"] += 1
@@ -83,8 +84,9 @@ def kfold_preprocess(train_df,val_df,Train_features):
         df["elapsed"].values,
         df['assessmentItemAverage'].values,
         df['UserAverage'].values,
+        df['elo'].values,
         df["answerCode"].values
-    ))
+    )) #df['UserAverage'].values,
     with open("train_group95.pkl.zip", 'wb') as pick:
         pickle.dump(train_group, pick)
     del train_group, train_df
@@ -96,10 +98,12 @@ def kfold_preprocess(train_df,val_df,Train_features):
         df["elapsed"].values,
         df['assessmentItemAverage'].values,
         df['UserAverage'].values,
+        df['elo'].values,
         df["answerCode"].values
-    ))
+    )) # df['UserAverage'].values,
     with open("val_group95.pkl.zip", 'wb') as pick:
         pickle.dump(val_group, pick)
+    print("Complete Pre-processing, execution time {:.2f} s".format(time.time() - t_s))
 
 def pre_process_train(train_df,test_df, ques_path, row_start=30e6, num_rows=30e6, split_ratio=0.9, seq_len=100):
     print("Start pre-process")
@@ -127,8 +131,8 @@ def pre_process_train(train_df,test_df, ques_path, row_start=30e6, num_rows=30e6
     print("Complete compute time_lag")
     print("====================")
     train_df = duration(train_df)
-    total_df = make_assess_ratio(train_df)
-    total_df = make_user_ratio(train_df)
+    train_df = make_assess_ratio(train_df)
+    train_df = make_user_ratio(train_df)
     # plus 1 for cat feature which starts from 0
     train_df=indexing('assessmentItemID',train_df)
     train_df=indexing('testId',train_df)
@@ -139,7 +143,6 @@ def pre_process_train(train_df,test_df, ques_path, row_start=30e6, num_rows=30e6
     # Train_features = ['userID','assessmentItemID','testId','time_lag','Timestamp','answerCode','KnowledgeTag','elapsed',]
     Train_features = ['userID', 'assessmentItemID', 'testId', 'time_lag', 'Timestamp', 'answerCode', 'KnowledgeTag',
                       'elapsed', 'assessmentItemAverage', 'UserAverage']
-    print(num_rows)
     if num_rows == -1:
         num_rows = train_df.shape[0]
     train_df = train_df.iloc[int(row_start):int(row_start + num_rows)]
@@ -195,30 +198,9 @@ def pre_process_train(train_df,test_df, ques_path, row_start=30e6, num_rows=30e6
 def pre_process_validation(train_df,other_df, ques_path, row_start=30e6, num_rows=30e6, split_ratio=0.9, seq_len=100):
     print("Start pre-process")
     t_s = time.time()
-
-    total_df = pd.concat([train_df,other_df]).reset_index(drop=True)
-    train_df.index = train_df.index.astype('uint32')
-
-    # get time_lag feature
-    print("Start compute time_lag")
-    time_dict = get_time_lag(train_df)
-    with open("fianl_sub_time_dict.pk1.zip", 'wb') as pick:
-        pickle.dump(time_dict, pick)
-    print("Complete compute time_lag")
-    print("====================")
-    train_df=duration(train_df)
-    train_df=make_assess_ratio(train_df)
-    train_df=make_user_ratio(train_df)
-    # plus 1 for cat feature which starts from 0
-    train_df=indexing('assessmentItemID',train_df)
-    train_df=indexing('testId',train_df)
-    train_df["assessmentItemID"] += 1
-    train_df["testId"] += 1
-    train_df["answerCode"] += 1
-
+    train_df=feature_engineering(train_df)
     Train_features = ['userID', 'assessmentItemID', 'testId', 'time_lag', 'Timestamp', 'answerCode', 'KnowledgeTag',
-                      'elapsed', 'assessmentItemAverage', 'UserAverage']
-
+                      'elapsed', 'assessmentItemAverage','UserAverage','elo'] # 'UserAverage'
     if num_rows == -1:
         num_rows = train_df.shape[0]
     train_df = train_df.iloc[int(row_start):int(row_start + num_rows)]
@@ -250,7 +232,8 @@ def pre_process_validation(train_df,other_df, ques_path, row_start=30e6, num_row
         df["elapsed"].values,
         df['assessmentItemAverage'].values,
         df['UserAverage'].values,
-        df["answerCode"].values
+        df['elo'].values,
+        df["answerCode"].values,
     ))
     with open("fianl_sub_train_group.pkl.zip", 'wb') as pick:
         pickle.dump(train_group, pick)
@@ -263,6 +246,7 @@ def pre_process_validation(train_df,other_df, ques_path, row_start=30e6, num_row
         df["elapsed"].values,
         df['assessmentItemAverage'].values,
         df['UserAverage'].values,
+        df['elo'].values,
         df["answerCode"].values
     ))
     with open("fianl_sub_val_group.pkl.zip", 'wb') as pick:

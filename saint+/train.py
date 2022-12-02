@@ -55,16 +55,6 @@ def train():
     with open("val_group95.pkl.zip", 'rb') as pick:
         val_group = pickle.load(pick)
 
-    # train_seq = Riiid_Sequence(train_group, seq_len)
-    # train_size = len(train_seq)
-    # train_loader = DataLoader(train_seq, batch_size=batch_size, shuffle=True, num_workers=8)
-    # del train_seq, train_group
-
-    # val_seq = Riiid_Sequence(val_group, seq_len)
-    # val_size = len(val_seq)
-    # val_loader = DataLoader(val_seq, batch_size=batch_size, shuffle=False, num_workers=8)
-    # del val_seq, val_group
-
     train_seq = Riiid_Sequence(train_group, seq_len)
     train_size = len(train_seq)
     train_loader = DataLoader(train_seq, batch_size=batch_size, shuffle=True, num_workers=8)
@@ -105,11 +95,13 @@ def train():
             ques_elapsed_time = data[2].to(device).float()
             itemaver = data[3].to(device).float()
             useraver = data[4].to(device).float()
-            answer_correct = data[5].to(device).long()
-            label = data[6].to(device).float()
+            # useraver = data[4].to(device).float()
+            elovalue=data[5].to(device).float()
+            answer_correct = data[6].to(device).long()
+            label = data[7].to(device).float()
             optimizer.optimizer.zero_grad()
 
-            preds = model(content_ids, time_lag, ques_elapsed_time, itemaver, useraver, answer_correct)
+            preds = model(content_ids, time_lag, ques_elapsed_time, itemaver,useraver,elovalue, answer_correct) #  useraver
             loss_mask = (answer_correct != 0)
             preds_masked = torch.masked_select(preds, loss_mask)
             label_masked = torch.masked_select(label, loss_mask)
@@ -136,11 +128,13 @@ def train():
             ques_elapsed_time = data[2].to(device).float()
             itemaver = data[3].to(device).float()
             useraver = data[4].to(device).float()
-            answer_correct = data[5].to(device).long()
+            # useraver = data[4].to(device).float()
+            elovalue=data[5].to(device).float()
+            answer_correct = data[6].to(device).long()
+            label = data[7].to(device).float()
             # answer_correct가 2가 나오는 이유???
-            label = data[6].to(device).float()
 
-            preds = model(content_ids, time_lag, ques_elapsed_time, itemaver, useraver, answer_correct)
+            preds = model(content_ids, time_lag, ques_elapsed_time, itemaver,useraver,elovalue, answer_correct) # useraver
             loss_mask = (answer_correct != 0)
             preds_masked = torch.masked_select(preds, loss_mask)
             label_masked = torch.masked_select(label, loss_mask)
@@ -175,7 +169,7 @@ def train():
         val_aucs.append(val_auc)
         exec_t = int((time.time() - t_s)/60)
         print("Train Loss {:.4f}/ Val Loss {:.4f}, Val AUC {:.4f} / Exec time {} min".format(train_loss, val_loss, val_auc, exec_t))
-        if count==5:
+        if count==patience:
             print('early stop')
             break
 

@@ -57,9 +57,9 @@ def main(args):
         time_lag = data[1].to(device).float()
         ques_elapsed_time = data[2].to(device).float()
         itemaver = data[3].to(device).float()
-        useraver = data[4].to(device).float()
-        answer_correct = data[5].to(device).long()
-        label = data[6].to(device).float()
+        # useraver = data[4].to(device).float()
+        answer_correct = data[4].to(device).long()
+        label = data[5].to(device).float()
         preds = model(content_ids, time_lag, ques_elapsed_time, itemaver, useraver, answer_correct)
         preds1 = preds[:, -1]
         submission.extend(preds1.data.cpu().numpy())
@@ -117,9 +117,10 @@ def kfold_main():
         ques_elapsed_time = data[2].to(device).float()
         itemaver = data[3].to(device).float()
         useraver = data[4].to(device).float()
-        answer_correct = data[5].to(device).long()
-        label = data[6].to(device).float()
-        preds = model(content_ids, time_lag, ques_elapsed_time, itemaver, useraver, answer_correct)
+        elovalue=data[5].to(device).float()
+        answer_correct = data[6].to(device).long()
+        label = data[7].to(device).float()
+        preds = model(content_ids, time_lag, ques_elapsed_time, itemaver,useraver,elovalue, answer_correct) # useraver,
         preds1 = preds[:, -1]
         submission.extend(preds1.data.cpu().numpy())
     return submission

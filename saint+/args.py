@@ -25,12 +25,12 @@ parser.add_argument('--seq_len', type=int, default=100,
                     help='sequence length(default: 100)')
 parser.add_argument('--warmup_steps', type=int, default=4000,
                     help='warmup_steps for learning rate(default: 4000)')
-parser.add_argument('--dropout', type=float, default=0.5,
+parser.add_argument('--dropout', type=float, default=0.1,
                     help='dropout ratio(default: 0.1)')
 parser.add_argument('--epochs', type=int, default=100,
                     help='number of epochs(default: 30)')
-parser.add_argument('--patience', type=int, default=3,
-                    help='patience to wait before early stopping(default: 3)')
+parser.add_argument('--patience', type=int, default=5,
+                    help='patience to wait before early stopping(default: 5)')
 parser.add_argument('--batch_size', type=int, default=64,
                     help='batch size(default: 512)')
 parser.add_argument('--optimizer', type=str, default='adam',
