@@ -6,16 +6,18 @@ import torch
 
 def prepare_dataset(device, basepath, verbose=True, logger=None):
     data = load_data(basepath)
-    train_data, test_data = separate_data(data)
+    train_data, valid_data, test_data = separate_data(data)
     id2index = indexing_data(data)
     train_data_proc = process_data(train_data, id2index, device)
+    valid_data_proc = process_data(valid_data, id2index, device)
     test_data_proc = process_data(test_data, id2index, device)
 
     if verbose:
         print_data_stat(train_data, "Train", logger=logger)
+        print_data_stat(valid_data, "Valid", logger=logger)
         print_data_stat(test_data, "Test", logger=logger)
 
-    return train_data_proc, test_data_proc, len(id2index)
+    return train_data_proc, valid_data_proc, test_data_proc, len(id2index)
 
 
 def load_data(basepath):
@@ -24,7 +26,7 @@ def load_data(basepath):
     data1 = pd.read_csv(path1)
     data2 = pd.read_csv(path2)
 
-    data = pd.concat([data1, data2])
+    data = pd.concat([data1, data2], ignore_index=True)
     data.drop_duplicates(
         subset=["userID", "assessmentItemID"], keep="last", inplace=True
     )
@@ -33,10 +35,14 @@ def load_data(basepath):
 
 
 def separate_data(data):
-    train_data = data[data.answerCode >= 0]
     test_data = data[data.answerCode < 0]
+    test_idx = test_data.index
+    valid_idx = list(map(lambda x:x -1, test_idx))
+    valid_data = data.loc[valid_idx]
+    train_data = data[data.answerCode >= 0]
+    train_data = train_data.drop(index=valid_idx)
 
-    return train_data, test_data
+    return train_data, valid_data, test_data
 
 
 def indexing_data(data):

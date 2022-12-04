@@ -39,7 +39,9 @@ def train(
 
     if valid_data is None:
         eids = np.arange(len(train_data["label"]))
-        eids = np.random.permutation(eids)[:1000]
+        eids = np.random.permutation(eids)[:500000]
+        # print(eids) -> [      0       1       2 ... 2475959 2475960 2475961] : 총 interaction 개수 =  2475962
+        # breakpoint()
         edge, label = train_data["edge"], train_data["label"]
         label = label.to("cpu").detach().numpy()
         valid_data = dict(edge=edge[:, eids], label=label[eids])
@@ -59,8 +61,8 @@ def train(
         with torch.no_grad():
             prob = model.predict_link(valid_data["edge"], prob=True)
             prob = prob.detach().cpu().numpy()
-            acc = accuracy_score(valid_data["label"], prob > 0.5)
-            auc = roc_auc_score(valid_data["label"], prob)
+            acc = accuracy_score(valid_data["label"].to("cpu").detach().numpy(), prob > 0.5)
+            auc = roc_auc_score(valid_data["label"].to("cpu").detach().numpy(), prob)
             logger.info(
                 f" * In epoch {(e+1):04}, loss={loss:.03f}, acc={acc:.03f}, AUC={auc:.03f}"
             )
