@@ -1,18 +1,21 @@
 import math
 import os
+from pathlib import Path
+import wandb
 
 import torch
-import wandb
+import torch.nn.functional as F
+import tqdm
 
 from .criterion import get_criterion
 from .dataloader import get_loaders
 from .metric import get_metric
-from .model import LSTM, LSTMATTN, Bert, last_query_model
+from .model import LSTM, LSTMATTN, Bert, ModifiedTransformer, LastQuery, last_query_model
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
 
 
-def run(args, train_data, valid_data, model):
+def run(args, train_data, valid_data, model, fold_num):
     train_loader, valid_loader = get_loaders(args, train_data, valid_data)
 
     # only when using warmup scheduler
@@ -32,13 +35,12 @@ def run(args, train_data, valid_data, model):
 
         ### TRAIN
         train_auc, train_acc, train_loss = train(
-            train_loader, model, optimizer, scheduler, args
+            train_loader, model, optimizer, scheduler, args, fold_num
         )
 
         ### VALID
-        auc, acc = validate(valid_loader, model, args)
+        auc, acc = validate(valid_loader, model, args, fold_num)
 
-        ### TODO: model save or early stopping
         wandb.log(
             {
                 "epoch": epoch,
@@ -49,8 +51,11 @@ def run(args, train_data, valid_data, model):
                 "valid_acc_epoch": acc,
             }
         )
+
+
         if auc > best_auc:
             best_auc = auc
+            best_acc = acc
             # torch.nn.DataParallel로 감싸진 경우 원래의 model을 가져옵니다.
             model_to_save = model.module if hasattr(model, "module") else model
             save_checkpoint(
@@ -59,14 +64,15 @@ def run(args, train_data, valid_data, model):
                     "state_dict": model_to_save.state_dict(),
                 },
                 args.model_dir,
-                f"{args.model}_{args.hidden_dim}_{args.max_seq_len}.pt",
+                fold_num,
+                "model.pt",
             )
             early_stopping_counter = 0
         else:
             early_stopping_counter += 1
             if early_stopping_counter >= args.patience:
                 print(
-                    f"EarlyStopping counter: {early_stopping_counter} out of {args.patience}"
+                    f"EarlyStopping counter: {early_stopping_counter} out of {args.patience}, \n\n"
                 )
                 break
 
@@ -74,24 +80,25 @@ def run(args, train_data, valid_data, model):
         if args.scheduler == "plateau":
             scheduler.step(best_auc)
 
+    return best_auc, best_acc
 
-def train(train_loader, model, optimizer, scheduler, args):
+def train(train_loader, model, optimizer, scheduler, args, fold_num):
     model.train()
 
     total_preds = []
     total_targets = []
     losses = []
+    # tk0 = tqdm.tqdm(train_loader, desc = "TRAINING", smoothing=0, mininterval=1.0)
     for step, batch in enumerate(train_loader):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
         preds = model(input)
-        targets = input[3]  # correct
+        targets = input[-3]  # correct
 
-        loss = compute_loss(preds, targets)
-
+        loss = compute_loss(preds, targets, args)
         update_params(loss, model, optimizer, scheduler, args)
 
-        if step % args.log_steps == 0:
-            print(f"Training steps: {step} Loss: {str(loss.item())}")
+        # if step % args.log_steps == 0:
+        #     print(f"Training steps: {step} Loss: {str(loss.item())}")
 
         # predictions
         preds = preds[:, -1]
@@ -107,20 +114,21 @@ def train(train_loader, model, optimizer, scheduler, args):
     # Train AUC / ACC
     auc, acc = get_metric(total_targets, total_preds)
     loss_avg = sum(losses) / len(losses)
-    print(f"TRAIN AUC : {auc} ACC : {acc}")
+    print(f"[FOLD - {fold_num}] TRAIN AUC : {auc} ACC : {acc}")
     return auc, acc, loss_avg
 
 
-def validate(valid_loader, model, args):
+def validate(valid_loader, model, args, fold_num):
     model.eval()
 
     total_preds = []
     total_targets = []
+    # tk0 = tqdm.tqdm(valid_loader, desc = "VALIDATION", smoothing=0, mininterval=1.0)
     for step, batch in enumerate(valid_loader):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
 
         preds = model(input)
-        targets = input[3]  # correct
+        targets = input[-3]  # correct
 
         # predictions
         preds = preds[:, -1]
@@ -135,7 +143,7 @@ def validate(valid_loader, model, args):
     # Train AUC / ACC
     auc, acc = get_metric(total_targets, total_preds)
 
-    print(f"VALID AUC : {auc} ACC : {acc}\n")
+    print(f"[FOLD - {fold_num}] VALID AUC : {auc} ACC : {acc}\n")
 
     return auc, acc
 
@@ -151,20 +159,14 @@ def inference(args, test_data, model):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
 
         preds = model(input)
-
+        preds = F.sigmoid(preds)
         # predictions
         preds = preds[:, -1]
         preds = torch.nn.Sigmoid()(preds)
         preds = preds.cpu().detach().numpy()
         total_preds += list(preds)
 
-    write_path = os.path.join(args.output_dir, f"{args.model}_{args.hidden_dim}_{args.max_seq_len}.csv")
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
-    with open(write_path, "w", encoding="utf8") as w:
-        w.write("id,prediction\n")
-        for id, p in enumerate(total_preds):
-            w.write("{},{}\n".format(id, p))
+    return total_preds
 
 
 def get_model(args):
@@ -179,14 +181,18 @@ def get_model(args):
         model = Bert(args)
     if args.model == "lastqt":
         model = last_query_model(args)
+    if args.model == 'modifiedtf':
+        model = ModifiedTransformer(args)
+    if args.model == "lastqt2":
+        model = LastQuery(args)
 
     return model
 
 
 # 배치 전처리
 def process_batch(batch):
-
-    test, question, tag, correct, duration, mask = batch
+    # print(f"[BATCH]:\n {batch}")
+    test, question, tag, duration, assess_ratio, correct, lastid,mask = batch
 
     # change to float
     mask = mask.float()
@@ -204,47 +210,55 @@ def process_batch(batch):
     question = ((question + 1) * mask).int()
     tag = ((tag + 1) * mask).int()
     duration = ((duration + 1) * mask).int()
+    lastid = ((lastid + 1) * mask).int()
 
-    return (test, question, tag, correct, mask, interaction, duration)
+    # print(f"[CORRECT IN PROCESS BATCH]: \n {correct}")
+    return (test, question, tag, duration, assess_ratio, lastid,correct, mask, interaction)
 
 
 # loss계산하고 parameter update!
-def compute_loss(preds, targets):
+def compute_loss(preds, targets, args):
     """
     Args :
         preds   : (batch_size, max_seq_len)
         targets : (batch_size, max_seq_len)
 
     """
-    loss = get_criterion(preds, targets)
+    loss = get_criterion(preds, targets.float())
 
     # 마지막 시퀀드에 대한 값만 loss 계산
-    loss1 = loss[:, -1]
-    loss2 = loss[:, -10]
-    loss = loss1+loss2
-    loss = torch.mean(loss)
+    if args.computing_loss == 'last':
+        loss = loss[:, -1]
+        loss = torch.mean(loss)
+    elif args.computing_loss == 'all':
+        loss = torch.sum(loss, dim = -1)
+        loss = torch.mean(loss)
+    elif args.computing_loss == 'custom':
+        loss_1 = torch.sum(loss[:, :-1], dim = -1)
+        loss = 0.5 * torch.mean(loss_1) + 0.5 * torch.mean(loss[:, -1])
     return loss
 
 
 def update_params(loss, model, optimizer, scheduler, args):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad)
+    optimizer.step()
     if args.scheduler == "linear_warmup":
         scheduler.step()
-    optimizer.step()
     optimizer.zero_grad()
 
 
-def save_checkpoint(state, model_dir, model_filename):
+def save_checkpoint(state, model_dir, fold_num, model_filename):
     print("saving model ...")
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-    torch.save(state, os.path.join(model_dir, model_filename))
+    ppath = Path(os.path.join(model_dir, f"fold_{fold_num}", model_filename))
+    ppath.parent.mkdir(parents = True, exist_ok = True)
+    torch.save(state, str(ppath))
 
 
-def load_model(args):
+def load_model(args, fold_num):
 
-    model_path = os.path.join(args.model_dir, args.model+"_"+str(args.hidden_dim)+"_"+str(args.max_seq_len)+".pt")
+    # model_path = os.path.join(args.model_dir, args.model_name)
+    model_path = os.path.join(args.model_dir, f"fold_{fold_num}", args.model_name)
     print("Loading Model from:", model_path)
     load_state = torch.load(model_path)
     model = get_model(args)
