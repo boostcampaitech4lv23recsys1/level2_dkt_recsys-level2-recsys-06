@@ -1,4 +1,5 @@
 import os
+from config import CFG
 
 import pandas as pd
 import torch
@@ -37,8 +38,13 @@ def load_data(basepath):
 def separate_data(data):
     test_data = data[data.answerCode < 0]
     test_idx = test_data.index
-    valid_idx = list(map(lambda x:x -1, test_idx))
+    
+    valid_idx = []
+    for i in range(1,CFG.valid_num + 1) :
+        tmp_idx = list(map(lambda x:x -i, test_idx))
+        valid_idx += tmp_idx
     valid_data = data.loc[valid_idx]
+    
     train_data = data[data.answerCode >= 0]
     train_data = train_data.drop(index=valid_idx)
 

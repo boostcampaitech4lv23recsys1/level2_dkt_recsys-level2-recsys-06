@@ -5,12 +5,15 @@ import time
 # ====================================================
 class CFG:
     use_cuda_if_available = True
-    user_wandb = True
+    user_wandb = False
     # wandb_kwargs = dict(project="dkt-gcn")
 
     # data
     basepath = "/opt/ml/input/data/"
     loader_verbose = True
+
+    #preprocessing
+    valid_num = 2
 
     # dump
     output_dir = "./output/"
