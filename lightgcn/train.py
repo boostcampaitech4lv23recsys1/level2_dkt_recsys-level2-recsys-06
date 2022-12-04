@@ -8,8 +8,13 @@ from lightgcn.utils import class2dict, get_logger
 if CFG.user_wandb:
     import wandb
 
-    wandb.init(**CFG.wandb_kwargs, config=class2dict(CFG))
-
+    wandb.init(
+        project="lightGCN", 
+        entity="recommendu", 
+        config=class2dict(CFG),
+        reinit=True
+        )
+    wandb.run.name = "edim: {0} nlayer: {1} lr: {2}".format(CFG.embedding_dim, CFG.num_layers, CFG.learning_rate)
 
 logger = get_logger(logging_conf)
 use_cuda = torch.cuda.is_available() and CFG.use_cuda_if_available

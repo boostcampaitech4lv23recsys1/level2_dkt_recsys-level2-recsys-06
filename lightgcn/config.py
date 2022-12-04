@@ -1,10 +1,12 @@
+import time
+
 # ====================================================
 # CFG
 # ====================================================
 class CFG:
     use_cuda_if_available = True
-    user_wandb = False
-    wandb_kwargs = dict(project="dkt-gcn")
+    user_wandb = True
+    # wandb_kwargs = dict(project="dkt-gcn")
 
     # data
     basepath = "/opt/ml/input/data/"
@@ -12,7 +14,11 @@ class CFG:
 
     # dump
     output_dir = "./output/"
-    pred_file = "submission.csv"
+    now = time.localtime()
+    now_date = time.strftime('%Y%m%d', now)
+    now_hour = time.strftime('%X', now)
+    save_time = now_date + '_' + now_hour.replace(':', '')
+    pred_file = "submission_{}.csv".format(save_time)
 
     # build
     embedding_dim = 64  # int
@@ -22,7 +28,7 @@ class CFG:
     weight = "./weight/best_model.pt"
 
     # train
-    n_epoch = 500
+    n_epoch = 1000
     learning_rate = 0.005
     weight_basepath = "./weight"
 
