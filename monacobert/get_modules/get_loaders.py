@@ -14,7 +14,7 @@ def get_loaders(config, idx=None):
         num_pid = None
         num_diff = None
         collate = collate_fn
-    elif config.dataset_name == "ednet_pid":
+    elif config.dataset_name == "icecream_pid":
         dataset = ICECREAM_PID_DIFF(config.max_seq_len, config=config)
         num_q = dataset.num_q
         num_r = dataset.num_r
