@@ -12,6 +12,7 @@ from .metric import get_metric
 from .model import LSTM, LSTMATTN, Bert, ModifiedTransformer
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
+from src.embed import DataEmbedding
 
 
 def run(args, train_data, valid_data, model, fold_num):
@@ -69,6 +70,7 @@ def run(args, train_data, valid_data, model, fold_num):
 
     return best_auc, best_acc
 
+
 def train(train_loader, model, optimizer, scheduler, args, fold_num):
     model.train()
 
@@ -77,15 +79,15 @@ def train(train_loader, model, optimizer, scheduler, args, fold_num):
     losses = []
     tk0 = tqdm.tqdm(train_loader, desc = "TRAINING", smoothing=0, mininterval=1.0)
     for step, batch in enumerate(tk0):
-        input = list(map(lambda t: t.to(args.device), process_batch(batch)))
-        preds = model(input)
-        targets = input[-3]  # correct
+        using_features = batch['using_features'] + ['interaction']
+        batch = process_batch(batch)
+        for col in using_features:
+            batch[col] = batch[col].to(args.device)
+        preds = model(batch)
+        targets = batch['answerCode']
 
         loss = compute_loss(preds, targets, args)
         update_params(loss, model, optimizer, scheduler, args)
-
-        # if step % args.log_steps == 0:
-        #     print(f"Training steps: {step} Loss: {str(loss.item())}")
 
         # predictions
         preds = preds[:, -1]
@@ -112,10 +114,13 @@ def validate(valid_loader, model, args, fold_num):
     total_targets = []
     tk0 = tqdm.tqdm(valid_loader, desc = "VALIDATION", smoothing=0, mininterval=1.0)
     for step, batch in enumerate(valid_loader):
-        input = list(map(lambda t: t.to(args.device), process_batch(batch)))
-
-        preds = model(input)
-        targets = input[-3]  # correct
+        using_features = batch['using_features'] + ['interaction']
+        batch = process_batch(batch)
+        for col in using_features:
+            batch[col] = batch[col].to(args.device)
+        
+        preds = model(batch)
+        targets = batch['answerCode']
 
         # predictions
         preds = preds[:, -1]
@@ -143,7 +148,12 @@ def inference(args, test_data, model):
     total_preds = []
 
     for step, batch in enumerate(test_loader):
-        input = list(map(lambda t: t.to(args.device), process_batch(batch)))
+        using_features = batch['using_features'] + ['interaction']
+        batch = process_batch(batch)
+        for col in using_features:
+            batch[col] = batch[col].to(args.device)
+        
+        preds = model(batch)
 
         preds = model(input)
         preds = F.sigmoid(preds)
@@ -173,12 +183,10 @@ def get_model(args):
 
 # 배치 전처리
 def process_batch(batch):
-    # print(f"[BATCH]:\n {batch}")
-    test, question, tag, duration, assess_ratio, correct, mask = batch
 
     # change to float
-    mask = mask.float()
-    correct = correct.float()
+    mask = batch['mask'].float()
+    correct = batch['answerCode'].float()
 
     # interaction을 임시적으로 correct를 한칸 우측으로 이동한 것으로 사용
     interaction = correct + 1  # 패딩을 위해 correct값에 1을 더해준다.
@@ -188,12 +196,20 @@ def process_batch(batch):
     interaction = (interaction * interaction_mask).to(torch.int64)
 
     #  test_id, question_id, tag
-    test = ((test + 1) * mask).int()
-    question = ((question + 1) * mask).int()
-    tag = ((tag + 1) * mask).int()
+    batch['userID'] = ((batch['userID'] + 1) * mask).int()
+    batch['testId'] = ((batch['testId'] + 1) * mask).int()
+    batch['assessmentItemID'] = ((batch['assessmentItemID'] + 1) * mask).int()
+    batch['KnowledgeTag'] = ((batch['KnowledgeTag'] + 1) * mask).int()
+    batch['relative_time_median'] = ((batch['relative_time_median'] + 1) * mask).int()
+    batch['hour'] = ((batch['hour'] + 1) * mask).int()
+    batch['dayofweek'] = ((batch['dayofweek'] + 1) * mask).int()
 
+
+    batch['answerCode'] = correct
+    batch['mask'] = mask
+    batch['interaction'] = interaction
     # print(f"[CORRECT IN PROCESS BATCH]: \n {correct}")
-    return (test, question, tag, duration, assess_ratio, correct, mask, interaction)
+    return batch
 
 
 # loss계산하고 parameter update!
@@ -236,7 +252,6 @@ def save_checkpoint(state, model_dir, fold_num, model_filename):
 
 
 def load_model(args, fold_num):
-
     # model_path = os.path.join(args.model_dir, args.model_name)
     model_path = os.path.join(args.model_dir, f"fold_{fold_num}", args.model_name)
     print("Loading Model from:", model_path)

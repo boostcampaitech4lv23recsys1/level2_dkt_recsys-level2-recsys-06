@@ -11,6 +11,9 @@ import torch
 import tqdm
 from sklearn.preprocessing import LabelEncoder
 from collections import defaultdict
+from torch.nn.utils.rnn import pad_sequence
+from collections import defaultdict
+
 
 class StandardScaler:
     def __init__(self):
@@ -57,6 +60,7 @@ class Preprocess:
         dataset = data[dataset_list]
 
         return data_for_train, dataset
+
 
     def split_data(self, train_data, test_data, train_idx, valid_idx):
         """
@@ -106,14 +110,6 @@ class Preprocess:
             test = le.transform(df[col])
             df[col] = test
 
-        # def convert_time(s):
-        #     timestamp = time.mktime(
-        #         datetime.strptime(s, "%Y-%m-%d %H:%M:%S").timetuple()
-        #     )
-        #     return int(timestamp)
-
-        # df["Timestamp"] = df["Timestamp"].apply(convert_time)
-
         return df
 
     def __feature_engineering(self, df, is_train):
@@ -158,30 +154,39 @@ class Preprocess:
     def load_data_from_file(self, file_name, is_train=True):
         stime = time.time()
         csv_file_path = os.path.join(self.args.data_dir, file_name)
-        df = pd.read_csv(csv_file_path)  # , nrows=100000)
-        df = self.__feature_engineering(df, is_train)
-        print(f"[FEATURE ENGINEERIN RESULT]\n {df.sample(3)} \n\n")
-        df = self.__preprocessing(df, is_train)
-
-
+        df = pd.read_csv(csv_file_path, low_memory = False)  # , nrows=100000)
+    
         # 추후 feature를 embedding할 시에 embedding_layer의 input 크기를 결정할때 사용
 
-        self.args.n_questions = len(np.load(os.path.join(self.args.asset_dir, "assessmentItemID_classes.npy")))
-        self.args.n_test = len(np.load(os.path.join(self.args.asset_dir, "testId_classes.npy")))
-        self.args.n_tag = len(np.load(os.path.join(self.args.asset_dir, "KnowledgeTag_classes.npy")))
+        
+        with open(os.path.join(self.args.asset_dir, "encoder.pkl"), 'rb') as f:
+            encoder_dict = pickle.load(f)
+        
+        self.args.n_questions = len(encoder_dict['assess_encoder'].classes_)
+        self.args.n_test = len(encoder_dict['testid_encoder'].classes_)
+        self.args.n_tag = len(encoder_dict['knowledge_encoder'].classes_)
 
-        df = df.sort_values(by=["userID", "Timestamp"], axis=0)
         df['check_userid'] = df['userID'].shift(-1)
         df['check'] = np.where(df['userID'] != df['check_userid'], 1, 0)
-        columns = ["userID", "assessmentItemID", "testId", "KnowledgeTag", 'duration', 'assess_ratio', "answerCode", 'check']
+
+        columns = ['userID', 'assessmentItemID', 'testId', 'KnowledgeTag', 'relative_time_median', 'hour', 'dayofweek', \
+                    'duration', 'userIDElo', 'assessmentItemIDElo', 'testIdElo', 'KnowledgeTagElo', \
+                    'past_correct', 'average_correct',  'mean_time', 'answerCode']
+        # 13개의 feature
         print(f"[DATAFRAME RESULT]\n {df.sample(3)} \n\n")
 
 
         # TODO column을 변경할거면 여기서 변경할 수 있다.
         if self.args.group_mode == 'userid':
-            group = (df[columns].groupby("userID").apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values)))
+            # group = (df[columns].groupby("userID").apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values)))
+            group = (df[columns].groupby('userID').apply(lambda x: (x['userID'].values, x['assessmentItemID'].values, x['testId'].values, x['KnowledgeTag'].values, x['relative_time_median'].values, x['hour'].values, x['dayofweek'].values\
+                                                                    , x['duration'].values, x['userIDElo'].values, x['assessmentItemIDElo'].values, x['testIdElo'].values, x['KnowledgeTagElo'].values\
+                                                                    , x['past_correct'].values, x['average_correct'].values, x['mean_time'].values, x['answerCode'].values)))
         elif self.args.group_mode == 'userid_with_testid':
-            group = (df[columns].groupby(["userID", "testId"]).apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values)))
+            # group = (df[columns].groupby(["userID", "testId"]).apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values)))
+            group = (df[columns].groupby(['userID', 'testId']).apply(lambda x: (x['userID'].values, x['assessmentItemID'].values, x['testId'].values, x['KnowledgeTag'].values, x['relative_time_median'].values, x['hour'].values, x['dayofweek'].values\
+                                                                    , x['duration'].values, x['userIDElo'].values, x['assessmentItemIDElo'].values, x['testIdElo'].values, x['KnowledgeTagElo'].values\
+                                                                    , x['past_correct'].values, x['average_correct'].values, x['mean_time'].values, x['answerCode'].values)))
         print(f"[PROCESS TIME]: {time.time() - stime}sec \n\n\n")
         return group.values
 
@@ -196,63 +201,61 @@ class DKTDataset(torch.utils.data.Dataset):
     def __init__(self, data, args):
         self.data = data
         self.args = args
+        self.using_features = ['userID', 'assessmentItemID', 'testId', 'KnowledgeTag', 'relative_time_median', 'hour', 'dayofweek', \
+                    'duration', 'userIDElo', 'assessmentItemIDElo', 'testIdElo', 'KnowledgeTagElo', \
+                    'past_correct', 'average_correct',  'mean_time', 'answerCode']
 
     def __getitem__(self, index):
         row = self.data[index]
 
         # 각 data의 sequence length
         seq_len = len(row[0])
-        #TODO user id를 추가해야하나?
-        userid, test, question, tag, duration, assess_ratio, correct = row[0], row[1], row[2], row[3], row[4], row[5], row[6]
-        # print(f"[CORRECT IN DATA LOADER ] \n {correct}")
-        # TODO 왜 category?
-        """
-        그냥 cols로 이름 바꿔도 되겠는데? category만을 위한 columns들은 아님. 베이스라인에서는 category만 존재하긴 했다.
-        category로 이름 두면 헷갈리잖아.
-        """
-        columns = [test, question, tag, duration, assess_ratio, correct]
+        case = {}
+        for idx, col in enumerate(self.using_features):
+            case[col] = row[idx]
 
-        # max seq len을 고려하여서 이보다 길면 자르고 아닐 경우 그대로 냅둔다
         if seq_len > self.args.max_seq_len:
-            for i, col in enumerate(columns):
-                columns[i] = col[-self.args.max_seq_len :]
+            for idx, col in enumerate(self.using_features):
+                case[col] = case[col][-self.args.max_seq_len:]
             mask = np.ones(self.args.max_seq_len, dtype=np.int16)
         else:
             mask = np.zeros(self.args.max_seq_len, dtype=np.int16)
             mask[-seq_len:] = 1
 
-        # mask도 columns 목록에 포함시킴
-        columns.append(mask)
+        # mask도 case 목록에 포함시킴
+        case['mask'] = torch.tensor(mask)
 
         # np.array -> torch.tensor 형변환
-        for i, col in enumerate(columns):
-            columns[i] = torch.tensor(col)
+        for idx, col in enumerate(self.using_features):
+            case[col] = torch.tensor(case[col])
+        case['using_features'] = self.using_features
 
-        return columns
+        return case
 
     def __len__(self):
         return len(self.data)
 
 
-from torch.nn.utils.rnn import pad_sequence
-
-
 def collate(batch):
-    col_n = len(batch[0])
-    col_list = [[] for _ in range(col_n)]
-    max_seq_len = len(batch[0][-1])
+    #batch에는 list로 전달된다. 리스트의 element로는 dictionary가 존재
+    using_features = batch[0]['using_features'] + ['mask']
 
+    # col_n = len(batch[0])
+    # col_list = [[] for _ in range(col_n)]
+    max_seq_len = len(batch[0]['mask'])
+    data = defaultdict(list)
     # batch의 값들을 각 column끼리 그룹화
     for row in batch:
-        for i, col in enumerate(row):
+        for idx, col in enumerate(using_features):
             pre_padded = torch.zeros(max_seq_len)
-            pre_padded[-len(col) :] = col
-            col_list[i].append(pre_padded)
+            pre_padded[-len(row[col]) :] = row[col]
+            data[col].append(pre_padded)
 
-    for i, _ in enumerate(col_list):
-        col_list[i] = torch.stack(col_list[i])
+    for i, col in enumerate(using_features):
+        data[col] = torch.stack(data[col])
 
-    return tuple(col_list)
+    data['using_features'] = using_features
+    return data
 
 
 def get_loaders(args, train, valid):

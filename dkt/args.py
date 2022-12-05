@@ -13,13 +13,13 @@ def parse_args():
 
     parser.add_argument("--data_dir", default="/opt/ml/input/", type=str, help="data directory")
     parser.add_argument("--asset_dir", default="/opt/ml/output/asset/", type=str, help="data directory")
-    parser.add_argument("--train_file_name", default="train_data.csv", type=str, help="train file name")
+    parser.add_argument("--train_file_name", default="train_data_processed.csv", type=str, help="train file name")
 
     parser.add_argument("--model_dir", default="/opt/ml/output/weight/", type=str, help="model directory")
     parser.add_argument("--model_name", default="model.pt", type=str, help="model file name")
 
     parser.add_argument("--output_dir", default="/opt/ml/output/submission/", type=str, help="output directory")
-    parser.add_argument("--test_file_name", default="test_data.csv", type=str, help="test file name")
+    parser.add_argument("--test_file_name", default="test_data_processed.csv", type=str, help="test file name")
 
     parser.add_argument("--max_seq_len", default=512, type=int, help="max sequence length")
     parser.add_argument("--num_workers", default=4, type=int, help="number of workers")

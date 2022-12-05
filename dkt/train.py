@@ -10,6 +10,18 @@ from src import trainer
 from src.dataloader import Preprocess
 from src.utils import setSeeds
 
+class StandardScaler:
+    def __init__(self):
+        self.train_mean = None
+        self.train_std = None
+
+    def build(self, train_data):
+        self.train_mean = train_data.mean()
+        self.train_std = train_data.std()
+
+    def normalize(self, df):
+        return (df - self.train_mean) / self.train_std
+        
 
 def main(args):
 

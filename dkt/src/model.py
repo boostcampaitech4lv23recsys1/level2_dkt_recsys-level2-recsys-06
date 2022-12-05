@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+from src.embed import DataEmbedding
 from .layer import SASRecBlock
 import math
 
@@ -251,60 +252,41 @@ class ModifiedTransformer(nn.Module):
         self.n_layers = self.args.n_layers
 
         # Embedding
-        # interaction은 현재 correct로 구성되어있다. correct(1, 2) + padding(0)
-        self.embedding_interaction = nn.Embedding(3, self.embed_dim, padding_idx = 0)
-        self.embedding_test = nn.Embedding(self.args.n_test + 1, self.embed_dim, padding_idx = 0)
-        self.embedding_question = nn.Embedding(self.args.n_questions + 1, self.embed_dim, padding_idx = 0)
-        self.embedding_tag = nn.Embedding(self.args.n_tag + 1, self.embed_dim, padding_idx = 0)
-        self.embedding_cont = nn.Linear(2, self.embed_dim, bias = False)
-        # embedding combination projection
-        self.comb_proj = nn.Linear(self.embed_dim * (4 + 1), self.hidden_dim)
-        self.position_embedding = PositionalEmbedding(d_model= self.hidden_dim, max_len = self.args.max_seq_len)
-        
+        self.enc_embedding = DataEmbedding(c_in = 1, d_model = self.hidden_dim, args = self.args, dropout = self.args.drop_out)
         self.blocks = nn.ModuleList([SASRecBlock(self.args.n_heads, self.hidden_dim, self.args.drop_out) for _ in range(self.n_layers)])
 
-        # Fully connected layer
+        self.lstm = nn.LSTM(self.hidden_dim, self.hidden_dim, self.n_layers, batch_first=True)
+
         self.fc = nn.Linear(self.hidden_dim, 1)
 
     def forward(self, input):
 
-        # test, question, tag, _, mask, interaction = input
-        test, question, tag, duration, assess_ratio, correct , mask, interaction = input
+        """
+        'using_features': ['userID', 'assessmentItemID', 'testId', 'KnowledgeTag', 
+        'relative_time_median', 'hour', 'dayofweek', 
+        'duration', 'userIDElo', 'assessmentItemIDElo', 'testIdElo', 'KnowledgeTagElo', 
+        'past_correct', 'average_correct', 'mean_time', 'answerCode', 'mask']
+        """
 
-        batch_size = interaction.size(0)
-        # mask_pad = torch.BoolTensor(interaction.to('cpu') > 0).unsqueeze(1).unsqueeze(1) # (batch_size, 1, 1, max_len)
-        # mask_time = (1 - torch.triu(torch.ones((1, 1, interaction.size(1), interaction.size(1))), diagonal=1)).bool() # (batch_size, 1, max_len, max_len)
-        # n_mask = (mask_pad & mask_time).to(self.args.device)
-        # print(interaction.shape, interaction, '\n')
-        # print(n_mask.shape, n_mask, '\n\n')
+        batch_size = input['interaction'].size(0)
+        mask = input['mask']
         max_len = self.args.max_seq_len
+
         pad_attn_mask = mask.data.eq(0)
         pad_attn_mask = pad_attn_mask.unsqueeze(1).expand(batch_size , max_len, max_len).unsqueeze(1)
-        # print(pad_attn_mask.shape)
-        # print(pad_attn_mask)
 
-        # Embedding
-        embed_interaction = self.embedding_interaction(interaction)
-        embed_test = self.embedding_test(test)
-        embed_question = self.embedding_question(question)
-        embed_tag = self.embedding_tag(tag)
-        x_cont = torch.cat([duration.unsqueeze(2), assess_ratio.unsqueeze(2)], dim = -1)
-        embed_cont = self.embedding_cont(x_cont)
-        embed = torch.cat([
-                embed_interaction,
-                embed_test,
-                embed_question,
-                embed_tag,
-                embed_cont], dim = -1)
+        x = input['interaction']
+        x_mark_categ = [input['assessmentItemID'], input['testId'], input['KnowledgeTag'], input['relative_time_median'],
+                        input['hour'], input['dayofweek']]
+        x_mark_cont = [input['duration'], input['userIDElo'], input['assessmentItemIDElo'], 
+                        input['testIdElo'], input['KnowledgeTagElo'], input['past_correct'], 
+                        input['average_correct'], input['mean_time']]
 
-        out = self.comb_proj(embed)
-        
-        position_embed = self.position_embedding(out)
-        out = out + position_embed
+        out = self.enc_embedding(x, x_mark_categ, x_mark_cont)
 
         for block in self.blocks:
             out, attn_dist = block(out, pad_attn_mask)
-
+        out, _ = self.lstm(out)
         # out, _ = self.lstm(X)
         out = out.contiguous().view(batch_size, -1, self.hidden_dim)
         out = self.fc(out).view(batch_size, -1)
