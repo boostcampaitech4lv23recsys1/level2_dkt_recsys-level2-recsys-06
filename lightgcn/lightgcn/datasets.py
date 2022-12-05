@@ -38,14 +38,24 @@ def load_data(basepath):
 def separate_data(data):
     test_data = data[data.answerCode < 0]
     test_idx = test_data.index
-    
-    valid_idx = []
-    for i in range(1,CFG.valid_num + 1) :
-        tmp_idx = list(map(lambda x:x -i, test_idx))
-        valid_idx += tmp_idx
-    valid_data = data.loc[valid_idx]
-    
     train_data = data[data.answerCode >= 0]
+    
+    # test set에 있는 모든 유저의 sequence의 CFG.valid_num개의 문제 풀이 데이터를 valid data로 추가
+    valid_idx = []
+    if CFG.user_wandb:
+        import wandb
+        for i in range(1,wandb.config['valid_num'] + 1) :
+            tmp_idx = list(map(lambda x:x -i, test_idx))
+            valid_idx += tmp_idx
+    else :
+        for i in range(1,CFG.valid_num + 1) :
+            tmp_idx = list(map(lambda x:x -i, test_idx))
+            valid_idx += tmp_idx
+        
+    # train set에 있는 모든 유저의 sequence의 마지막 문제 풀이 데이터를 valid data로 추가
+    valid_idx += list(train_data.index.to_series().groupby(train_data['userID']).last().reset_index(name='last_idx')['last_idx'].values)
+    valid_data = data.loc[valid_idx]    
+
     train_data = train_data.drop(index=valid_idx)
 
     return train_data, valid_data, test_data
