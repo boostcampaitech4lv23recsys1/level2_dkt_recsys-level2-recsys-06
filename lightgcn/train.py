@@ -3,8 +3,9 @@ import torch
 from config import CFG, logging_conf
 from lightgcn.datasets import prepare_dataset
 from lightgcn.models import build, train
-from lightgcn.utils import class2dict, get_logger
+from lightgcn.utils import class2dict, get_logger, setSeeds
 
+setSeeds()
 if CFG.user_wandb:
     import wandb
 
@@ -14,12 +15,16 @@ if CFG.user_wandb:
         config=class2dict(CFG),
         reinit=True
         )
-    wandb.run.name = "edim: {0} nlayer: {1} lr: {2}".format(CFG.embedding_dim, CFG.num_layers, CFG.learning_rate)
+    changed_params = ['embedding_dim', 'num_layers', 'learning_rate']
+    wandb.run.name = "edim: {0} nlayer: {1} lr: {2}".format(wandb.config['embedding_dim'], wandb.config['num_layers'], wandb.config['learning_rate'])
+    print(wandb.run.name) 
+    for param in changed_params:
+        setattr(CFG, param, wandb.config[param])
 
 logger = get_logger(logging_conf)
 use_cuda = torch.cuda.is_available() and CFG.use_cuda_if_available
 device = torch.device("cuda" if use_cuda else "cpu")
-print(device)
+# print(device)
 
 
 def main():

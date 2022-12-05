@@ -5,7 +5,7 @@ import time
 # ====================================================
 class CFG:
     use_cuda_if_available = True
-    user_wandb = False
+    user_wandb = True
     # wandb_kwargs = dict(project="dkt-gcn")
 
     # data
@@ -13,7 +13,7 @@ class CFG:
     loader_verbose = True
 
     #preprocessing
-    valid_num = 2
+    valid_num = 1
 
     # dump
     output_dir = "./output/"
@@ -31,7 +31,7 @@ class CFG:
     weight = "./weight/best_model.pt"
 
     # train
-    n_epoch = 1000
+    n_epoch = 3000
     learning_rate = 0.005
     weight_basepath = "./weight"
 
