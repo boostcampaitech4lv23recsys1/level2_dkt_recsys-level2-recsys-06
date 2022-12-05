@@ -159,7 +159,7 @@ def inference(args, test_data, model):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
 
         preds = model(input)
-        preds = F.sigmoid(preds)
+
         # predictions
         preds = preds[:, -1]
         preds = torch.nn.Sigmoid()(preds)
@@ -235,6 +235,9 @@ def compute_loss(preds, targets, args):
         loss = torch.mean(loss)
     elif args.computing_loss == 'custom':
         loss_1 = torch.sum(loss[:, :-1], dim = -1)
+        loss = 0.5 * torch.mean(loss_1) + 0.5 * torch.mean(loss[:, -1])
+    elif args.computing_loss == 'custom2':
+        loss_1 = torch.sum(loss[:, :-10], dim = -1)
         loss = 0.5 * torch.mean(loss_1) + 0.5 * torch.mean(loss[:, -1])
     return loss
 

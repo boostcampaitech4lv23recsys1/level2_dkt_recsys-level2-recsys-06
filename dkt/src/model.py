@@ -273,7 +273,7 @@ class last_query_model(nn.Module):
         super().__init__()
         self.args = args
         self.seq_len = self.args.max_seq_len
-        self.hidden_dim = self.args.hidden_dim
+        self.hidden_dim = self.args.hidden_dim // 4
         self.n_heads = self.args.n_heads
 
         self.embedding_interaction = nn.Embedding(3, self.hidden_dim)
@@ -292,14 +292,27 @@ class last_query_model(nn.Module):
         
         self.multi_en = nn.MultiheadAttention( embed_dim= self.hidden_dim, num_heads= self.n_heads, dropout=0.1  )     # multihead attention    ## todo add dropout, LayerNORM
         self.ffn_en = Feed_Forward_block( self.hidden_dim)                                            # feedforward block     ## todo dropout, LayerNorm
-        self.layer_norm1 = nn.LayerNorm( (self.hidden_dim))
-        self.layer_norm2 = nn.LayerNorm( (self.hidden_dim))
+        self.layer_norm1 = nn.LayerNorm(self.hidden_dim)
+        self.layer_norm2 = nn.LayerNorm(self.hidden_dim)
+
+
+        self.query = nn.Linear(
+            in_features=self.hidden_dim, out_features=self.hidden_dim
+        )
+        self.key = nn.Linear(in_features=self.hidden_dim, out_features=self.hidden_dim)
+        self.value = nn.Linear(
+            in_features=self.hidden_dim, out_features=self.hidden_dim
+        )
 
         self.use_lstm = self.args.use_lstm
         if self.use_lstm:
             self.lstm = nn.LSTM(input_size= self.hidden_dim, hidden_size= self.hidden_dim , num_layers=1)
+        self.gru = nn.GRU(
+            self.hidden_dim, self.hidden_dim, self.args.n_layers, batch_first=True
+        )
 
         self.out = nn.Linear(in_features= self.hidden_dim , out_features=1)
+        self.activation = nn.Sigmoid()
         
 
     
@@ -319,16 +332,16 @@ class last_query_model(nn.Module):
             # 신나는 embedding
 
             embed_interaction = self.embedding_interaction(interaction)
-            embed_interaction = nn.Dropout(0.1)(embed_interaction)
+            # embed_interaction = nn.Dropout(0.1)(embed_interaction)
 
             embed_test = self.embedding_test(test)
-            embed_test = nn.Dropout(0.1)(embed_test)
+            # embed_test = nn.Dropout(0.1)(embed_test)
 
             embed_question = self.embedding_question(question)
-            embed_question = nn.Dropout(0.1)(embed_question)
+            # embed_question = nn.Dropout(0.1)(embed_question)
 
             embed_tag = self.embedding_tag(tag)
-            embed_tag = nn.Dropout(0.1)(embed_tag)
+            # embed_tag = nn.Dropout(0.1)(embed_tag)
 
             # embed_lastid = self.embedding_lastid(lastid)
             # embed_lastid = nn.Dropout(0.1)(embed_lastid)
@@ -345,25 +358,26 @@ class last_query_model(nn.Module):
             assess_ratio = self.ratio_emb(assess_ratio) # [batch*seq_len, d_model]
             embed_ratio = assess_ratio.view(-1, seq_len, self.hidden_dim) # [batch, seq_len, d_model]
 
-            # embed = torch.cat(
-            #     [
-            #         embed_interaction,
-            #         embed_test,
-            #         embed_question,
-            #         embed_tag,
-            #         embed_duration,
-            #         embed_ratio
-            #     ],
-            #     2,
-            # )
-            # out = self.comb_proj(embed)
-            out = embed_interaction + embed_test + embed_question + embed_tag + embed_duration + embed_ratio#+ in_pos                      # (b,sequence,d) [64,100,128]
+            embed = torch.cat(
+                [
+                    embed_interaction,
+                    embed_test,
+                    embed_question,
+                    embed_tag,
+                    embed_duration,
+                    embed_ratio
+                ],
+                2,
+            )
+            embed = self.comb_proj(embed)
+
+            # out = embed_interaction + embed_test + embed_question + embed_tag + embed_duration + embed_ratio#+ in_pos                      # (b,sequence,d) [64,100,128]
             
-            print("out shape : ",out.shape)
+            print("out shape : ",embed.shape)
             count += 1
         else:
             print("not")
-            out = embed_interaction
+            embed = embed_interaction
         
         #in_pos = get_pos(self.seq_len)
         #in_pos = self.embd_pos( in_pos )
@@ -385,50 +399,86 @@ class last_query_model(nn.Module):
         # out1 = out1.contiguous().view(batch_size, -1, self.hidden_dim)
         # out1 = self.out(out1).view(batch_size, -1)
 
-        ###----
-        out = out.permute(1,0,2)                                # (n,b,d)  # print('pre multi', out.shape ) [100, 64, 128]
-        print("change out ", out.shape) 
-        #Multihead attention                            
-        n,_,_ = out.shape #100, sequence_len
+        ####-------
+        q = self.query(embed).permute(1, 0, 2)
 
+        q = self.query(embed)[:, -1:, :].permute(1, 0, 2)
 
-        out = self.layer_norm1(out)                           # Layer norm
-        skip_out = out 
+        k = self.key(embed).permute(1, 0, 2)
+        v = self.value(embed).permute(1, 0, 2)
+
+        ## attention
+        # last query only
+        out, _ = self.multi_en(q, k, v)
+
+        ## residual + layer norm
+        out = out.permute(1, 0, 2)
+        out = embed + out
+        out = self.layer_norm1(out)
+
+        ## feed forward network
+        out = self.ffn_en(out)
+
+        ## residual + layer norm
+        out = embed + out
+        out = self.layer_norm2(out)
+
+        # out, hidden = self.lstm(out)
+        out, hidden = self.gru(out)
+
         
-        # print("out -1 ", out[-1:,:,:], out[-1:,:,:].shape)
-        out, attn_wt = self.multi_en( out[-1:,:,:] , out , out)         # Q,K,V
-        #                        #attn_mask=get_mask(seq_len=n))  # attention mask upper triangular
-        #print('MLH out shape', out.shape)
-        out = out + skip_out                                    # skip connection (residual)
+        out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        out = self.out(out)
+        preds = self.activation(out).view(batch_size, -1)
+
+        
+        
+        
+        
+        # ###----
+        # out = out.permute(1,0,2)                                # (n,b,d)  # print('pre multi', out.shape ) [100, 64, 128]
+        # print("change out ", out.shape) 
+        # #Multihead attention                            
+        # n,_,_ = out.shape #100, sequence_len
+
+
+        # out = self.layer_norm1(out)                           # Layer norm
+        # skip_out = out 
+        
+        # # print("out -1 ", out[-1:,:,:], out[-1:,:,:].shape)
+        # out, attn_wt = self.multi_en( out[-1:,:,:] , out , out)         # Q,K,V
+        # #                        #attn_mask=get_mask(seq_len=n))  # attention mask upper triangular
+        # #print('MLH out shape', out.shape)
+        # out = out + skip_out                                    # skip connection (residual)
 
    
-        #LSTM
-        print("lstm전")
-        if self.use_lstm:
-            out,_ = self.lstm( out )                                  # seq_len, batch, input_size
-            # out = out[-1:,:,:]
+        # #LSTM
+        # print("lstm전")
+        # if self.use_lstm:
+        #     out,_ = self.lstm( out )                                  # seq_len, batch, input_size
+        #     # out = out[-1:,:,:]
 
-        #feed forward
-        out = out.permute(1,0,2)                                # (b,n,d)
-        print("last change:", out.shape)
-        out = self.layer_norm2( out )                           # Layer norm 
-        skip_out = out
-        print("layernorm2")
-        out = self.ffn_en( out )
-        print("ffn_en")
-        out = out + skip_out                                    # skip connection
-        print(out.shape)
-        print("batchsize", batch_size)
-        # out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        # #feed forward
+        # out = out.permute(1,0,2)                                # (b,n,d)
+        # print("last change:", out.shape)
+        # out = self.layer_norm2( out )                           # Layer norm 
+        # skip_out = out
+        # print("layernorm2")
+        # out = self.ffn_en( out )
+        # print("ffn_en")
+        # out = out + skip_out                                    # skip connection
+        # print(out.shape)
+        # print("batchsize", batch_size)
+        # # out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        # # print(out.shape)
+
+        # out = self.out( out ).view(batch_size, -1)
+        # print("end")
         # print(out.shape)
 
-        out = self.out( out ).view(batch_size, -1)
-        print("end")
-        print(out.shape)
-
-        #----
+        # #----
         
-        return out
+        return preds
 
 # def get_clones(module, N):
 #     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])

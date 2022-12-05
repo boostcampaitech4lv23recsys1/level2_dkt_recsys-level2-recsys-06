@@ -5,9 +5,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--seed", default=42, type=int, help="seed")
-    parser.add_argument("--valid_mode", default="kfold", type=str, help="random, kfold")
+    parser.add_argument("--valid_mode", default="random", type=str, help="random, kfold")
     parser.add_argument("--group_mode", default="userid", type=str, help="userid, userid_with_testid")
-    parser.add_argument("--computing_loss", default="all", type=str, help="all, last, custom")
+    parser.add_argument("--computing_loss", default="custom2", type=str, help="all, last, custom, custom2")
     parser.add_argument("--device", default="gpu", type=str, help="cpu or gpu")
     parser.add_argument("--model", default="lastqt", type=str, help="lstm, lstmattn, bert, modifiedtf, lastqt, lastqt2")
 
