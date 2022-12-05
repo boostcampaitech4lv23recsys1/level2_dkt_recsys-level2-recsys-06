@@ -391,7 +391,7 @@ class CoBERT_CTT(nn.Module):
         self.num_q = num_q
         self.num_r = num_r + 2 # '+2' is for 1(correct), 0(incorrect), <PAD>, <MASK>
         self.num_pid = num_pid
-        self.num_diff = 101 # hard coding
+        self.num_diff = num_diff
 
         self.hidden_size = hidden_size
         self.output_size = output_size

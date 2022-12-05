@@ -7,7 +7,21 @@ from dataloaders.icecream_pid_diff_loader import ICECREAM_PID_DIFF
 def get_loaders(config, idx=None):
 
     # 1. choose the loaders
-    if config.dataset_name == "icecream_pid_diff":
+    if config.dataset_name == "icecream":
+        dataset = ICECREAM_PID_DIFF(config.max_seq_len, config=config)
+        num_q = dataset.num_q
+        num_r = dataset.num_r
+        num_pid = None
+        num_diff = None
+        collate = collate_fn
+    elif config.dataset_name == "ednet_pid":
+        dataset = ICECREAM_PID_DIFF(config.max_seq_len, config=config)
+        num_q = dataset.num_q
+        num_r = dataset.num_r
+        num_pid = dataset.num_pid
+        num_diff = None
+        collate = pid_collate_fn
+    elif config.dataset_name == "icecream_pid_diff":
         dataset = ICECREAM_PID_DIFF(config.max_seq_len, config=config)
         num_q = dataset.num_q
         num_r = dataset.num_r
