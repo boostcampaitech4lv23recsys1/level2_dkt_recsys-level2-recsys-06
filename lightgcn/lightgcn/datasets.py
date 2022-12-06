@@ -1,4 +1,5 @@
 import os
+from config import CFG
 
 import pandas as pd
 import torch
@@ -6,16 +7,18 @@ import torch
 
 def prepare_dataset(device, basepath, verbose=True, logger=None):
     data = load_data(basepath)
-    train_data, test_data = separate_data(data)
+    train_data, valid_data, test_data = separate_data(data)
     id2index = indexing_data(data)
     train_data_proc = process_data(train_data, id2index, device)
+    valid_data_proc = process_data(valid_data, id2index, device)
     test_data_proc = process_data(test_data, id2index, device)
 
     if verbose:
         print_data_stat(train_data, "Train", logger=logger)
+        print_data_stat(valid_data, "Valid", logger=logger)
         print_data_stat(test_data, "Test", logger=logger)
 
-    return train_data_proc, test_data_proc, len(id2index)
+    return train_data_proc, valid_data_proc, test_data_proc, len(id2index)
 
 
 def load_data(basepath):
@@ -24,7 +27,7 @@ def load_data(basepath):
     data1 = pd.read_csv(path1)
     data2 = pd.read_csv(path2)
 
-    data = pd.concat([data1, data2])
+    data = pd.concat([data1, data2], ignore_index=True)
     data.drop_duplicates(
         subset=["userID", "assessmentItemID"], keep="last", inplace=True
     )
@@ -33,10 +36,29 @@ def load_data(basepath):
 
 
 def separate_data(data):
-    train_data = data[data.answerCode >= 0]
     test_data = data[data.answerCode < 0]
+    test_idx = test_data.index
+    train_data = data[data.answerCode >= 0]
+    
+    # test set에 있는 모든 유저의 sequence의 CFG.valid_num개의 문제 풀이 데이터를 valid data로 추가
+    valid_idx = []
+    if CFG.user_wandb:
+        import wandb
+        for i in range(1,wandb.config['valid_num'] + 1) :
+            tmp_idx = list(map(lambda x:x -i, test_idx))
+            valid_idx += tmp_idx
+    else :
+        for i in range(1,CFG.valid_num + 1) :
+            tmp_idx = list(map(lambda x:x -i, test_idx))
+            valid_idx += tmp_idx
+        
+    # train set에 있는 모든 유저의 sequence의 마지막 문제 풀이 데이터를 valid data로 추가
+    valid_idx += list(train_data.index.to_series().groupby(train_data['userID']).last().reset_index(name='last_idx')['last_idx'].values)
+    valid_data = data.loc[valid_idx]    
 
-    return train_data, test_data
+    train_data = train_data.drop(index=valid_idx)
+
+    return train_data, valid_data, test_data
 
 
 def indexing_data(data):
