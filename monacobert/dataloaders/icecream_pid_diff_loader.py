@@ -177,7 +177,7 @@ class ICECREAM_PID_DIFF(Dataset):
         with open(os.path.join(self.pickle_dir, "diff_seqs.pkl"), "wb") as f:
             pickle.dump(diff_seqs, f)
         with open(os.path.join(self.pickle_dir, "pid_list.pkl"), "wb") as f:
-            pickle.dump(pid_seqs, f)
+            pickle.dump(pid_list, f)
         with open(os.path.join(self.pickle_dir, "diff_list.pkl"), "wb") as f:
             pickle.dump(diff_list, f)
 
