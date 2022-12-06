@@ -353,7 +353,7 @@ class MonaCoBERT_Trainer():
         # Test Session
         y_scores = self._test(test_loader, metric_name)
         submission = pd.DataFrame({'id': range(len(y_scores)),'prediction':y_scores})
-        submission.to_csv("output/submission_{0}_{1}_avgscore{2:.4f}.csv".format(config.model_name, config.dataset_name, np.average(valid_scores)),index=False)       
+        submission.to_csv("output/submission_{0}_{1}_best{2:.4f}.csv".format(config.model_name, config.dataset_name, early_stopping.best_score),index=False)       
 
         # self.model.load_state_dict(torch.load("../checkpoints/checkpoint.pt"))
 
