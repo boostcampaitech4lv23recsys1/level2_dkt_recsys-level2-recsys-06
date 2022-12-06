@@ -296,6 +296,9 @@ class MonaCoBERT_Trainer():
         #     return auc_score
         # elif metric_name == "RMSE":
         #     return loss_result
+        
+        y_scores = torch.cat(y_scores).detach().cpu().numpy()
+        return y_scores
 
     # train use the _train, _validate, _test
     def train(self, train_loader, valid_loader, test_loader, config):
