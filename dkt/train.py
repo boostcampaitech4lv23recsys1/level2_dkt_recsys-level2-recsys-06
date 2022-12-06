@@ -30,6 +30,10 @@ def main(args):
 
     wandb.init(project="lastqt", entity="recommendu",name=f"{args.model}_{args.valid_mode}_{args.computing_loss}_{args.hidden_dim}_{args.max_seq_len}", config=vars(args))
 
+    
+
+
+
     total_index = np.arange(len(train_data))
     print(f"total index length: {len(total_index)}")
     if args.valid_mode == 'kfold':

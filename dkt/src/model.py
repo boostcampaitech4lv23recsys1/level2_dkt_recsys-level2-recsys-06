@@ -383,23 +383,7 @@ class last_query_model(nn.Module):
         #in_pos = self.embd_pos( in_pos )
         #out = out + in_pos                                      # Applying positional embedding
 
-        # out1 = out.permute(1,0,2)
-        # out1, _ = self.multi_en(out1[-1:,:,:], out1, out1)
         
-        # out1 = out1.permute(1,0,2)
-        # out1 = out + out1
-        # out1 = self.layer_norm1(out1)
-        
-
-        # out1 = self.ffn_en(out1)
-        # out1 = out + out1
-        # out1 = self.layer_norm2(out1)
-
-        # out1, hidden = self.lstm(out1)
-        # out1 = out1.contiguous().view(batch_size, -1, self.hidden_dim)
-        # out1 = self.out(out1).view(batch_size, -1)
-
-        ####-------
         q = self.query(embed).permute(1, 0, 2)
 
         q = self.query(embed)[:, -1:, :].permute(1, 0, 2)
@@ -429,7 +413,7 @@ class last_query_model(nn.Module):
         
         out = out.contiguous().view(batch_size, -1, self.hidden_dim)
         out = self.out(out)
-        preds = self.activation(out).view(batch_size, -1)
+        out = out.view(batch_size, -1)
 
         
         
@@ -478,18 +462,8 @@ class last_query_model(nn.Module):
 
         # #----
         
-        return preds
+        return out
 
-# def get_clones(module, N):
-#     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
-
-# def get_mask(seq_len):
-#     ##todo add this to device
-#     return torch.from_numpy( np.triu(np.ones((1 ,seq_len)), k=1).astype('bool'))
-
-# def get_pos(seq_len):
-#     # use sine positional embeddinds
-#     return torch.arange( seq_len ).unsqueeze(0) 
 
 class ModifiedTransformer(nn.Module):
     def __init__(self, args):
