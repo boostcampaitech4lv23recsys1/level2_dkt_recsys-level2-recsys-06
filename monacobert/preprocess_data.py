@@ -9,7 +9,14 @@ import os
 import pickle
 
 # Please specify your dataset Path
-BASE_PATH = "../../data/"
+BASE_PATH = "/opt/ml/input/data"
+
+# Concat Train & Test data
+train_df = pd.read_csv(os.path.join(BASE_PATH,"train_data.csv"), sep=',')
+test_df = pd.read_csv(os.path.join(BASE_PATH,"test_data.csv"), sep=',')
+concat_df = pd.concat([train_df,test_df])
+concat_df.to_csv(os.path.join(BASE_PATH,'concat.csv'), index=False)
+
 min_user_inter_num = 1
 data_path = os.path.join(BASE_PATH, "concat.csv")
 
