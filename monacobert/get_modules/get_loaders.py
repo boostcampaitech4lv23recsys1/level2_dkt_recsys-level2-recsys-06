@@ -1,21 +1,23 @@
 from torch.utils.data import DataLoader, random_split, Subset, ConcatDataset
 from utils import collate_fn, pid_collate_fn, pid_diff_collate_fn
 
-#icecream
+#icecream loader
+from dataloaders.icecream_loader import ICECREAM
+from dataloaders.icecream_pid_loader import ICECREAM_PID
 from dataloaders.icecream_pid_diff_loader import ICECREAM_PID_DIFF
 
 def get_loaders(config, idx=None):
 
     # 1. choose the loaders
     if config.dataset_name == "icecream":
-        dataset = ICECREAM_PID_DIFF(config.max_seq_len, config=config)
+        dataset = ICECREAM(config.max_seq_len, config=config)
         num_q = dataset.num_q
         num_r = dataset.num_r
         num_pid = None
         num_diff = None
         collate = collate_fn
     elif config.dataset_name == "icecream_pid":
-        dataset = ICECREAM_PID_DIFF(config.max_seq_len, config=config)
+        dataset = ICECREAM_PID(config.max_seq_len, config=config)
         num_q = dataset.num_q
         num_r = dataset.num_r
         num_pid = dataset.num_pid

@@ -3,14 +3,13 @@ from copy import deepcopy
 
 from torch.nn.functional import one_hot
 from sklearn import metrics
+from sklearn.metrics import mean_squared_error
+import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from random import random, randint
 
 from utils import EarlyStopping
-
-from sklearn.metrics import mean_squared_error
-import pandas as pd
 
 # For Train MLM
 # 15% <MASK>, 80% of 15% are real <MASK>, 10% of 15% are reverse, 10% of 15% are not changed
@@ -250,7 +249,7 @@ class MonaCoBERT_CTT_Trainer():
 
         rmse_score = np.sqrt(mean_squared_error(y_true=y_trues, y_pred=y_scores))
 
-        #loss_result = torch.mean(torch.Tensor(loss_list)).detach().cpu().numpy()
+        loss_result = torch.mean(torch.Tensor(loss_list)).detach().cpu().numpy()
 
         if metric_name == "AUC":
             return auc_score
@@ -359,13 +358,13 @@ class MonaCoBERT_CTT_Trainer():
                 epoch_index + 1,
                 self.n_epochs,
                 train_score,
-                valid_score,
+                valid_score
             ))
 
         # Test Session
         y_scores = self._test(test_loader, metric_name)
         submission = pd.DataFrame({'id': range(len(y_scores)),'prediction':y_scores})
-        submission.to_csv("../../data/submission.csv",index=False)       
+        submission.to_csv("output/submission_{0}_{1}_avgscore{2:.4f}.csv".format(config.model_name, config.dataset_name, np.average(valid_scores)),index=False)       
 
         # self.model.load_state_dict(torch.load("./checkpoints/checkpoint.pt"))
 

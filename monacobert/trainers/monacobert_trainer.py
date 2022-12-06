@@ -3,6 +3,7 @@ from copy import deepcopy
 
 from torch.nn.functional import one_hot
 from sklearn import metrics
+import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from random import random, randint
@@ -249,7 +250,6 @@ class MonaCoBERT_Trainer():
 
         auc_score = 0
         y_trues, y_scores = [], []
-        loss_list = []
 
         with torch.no_grad():
             for data in tqdm(test_loader):
@@ -284,19 +284,18 @@ class MonaCoBERT_Trainer():
 
                 y_trues.append(correct)
                 y_scores.append(y_hat)
-                loss_list.append(loss)
 
-        y_trues = torch.cat(y_trues).detach().cpu().numpy()
-        y_scores = torch.cat(y_scores).detach().cpu().numpy()
+        # y_trues = torch.cat(y_trues).detach().cpu().numpy()
+        # y_scores = torch.cat(y_scores).detach().cpu().numpy()
 
-        auc_score += metrics.roc_auc_score( y_trues, y_scores )
+        # auc_score += metrics.roc_auc_score( y_trues, y_scores )
 
-        loss_result = torch.mean(torch.Tensor(loss_list)).detach().cpu().numpy()
+        # loss_result = torch.mean(torch.Tensor(loss_list)).detach().cpu().numpy()
 
-        if metric_name == "AUC":
-            return auc_score
-        elif metric_name == "RMSE":
-            return loss_result
+        # if metric_name == "AUC":
+        #     return auc_score
+        # elif metric_name == "RMSE":
+        #     return loss_result
 
     # train use the _train, _validate, _test
     def train(self, train_loader, valid_loader, test_loader, config):
@@ -312,11 +311,9 @@ class MonaCoBERT_Trainer():
         
         train_scores = []
         valid_scores = []
-        test_scores = []
 
         # early_stopping
-        early_stopping = EarlyStopping(metric_name=metric_name,
-                                    best_score=best_valid_score)
+        early_stopping = EarlyStopping(metric_name=metric_name,best_score=best_valid_score)
 
         # Train and Valid Session
         for epoch_index in range(self.n_epochs):
@@ -329,44 +326,31 @@ class MonaCoBERT_Trainer():
             # Training Session
             train_score = self._train(train_loader, metric_name)
             valid_score = self._validate(valid_loader, metric_name)
-            test_score = self._test(test_loader, metric_name)
 
             # train, test record 저장
             train_scores.append(train_score)
             valid_scores.append(valid_score)
-            test_scores.append(test_score)
 
             # early stop
             train_scores_avg = np.average(train_scores)
             valid_scores_avg = np.average(valid_scores)
-            early_stopping(valid_scores_avg, self.model)
+            early_stopping(valid_score, self.model)
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
-
-            if config.crit == "binary_cross_entropy":
-                if test_score >= best_test_score:
-                    best_test_score = test_score
-            elif config.crit == "rmse":
-                if test_score <= best_test_score:
-                    best_test_score = test_score
 
             print("Epoch(%d/%d) result: train_score=%.4f  valid_score=%.4f test_score=%.4f best_test_score=%.4f" % (
                 epoch_index + 1,
                 self.n_epochs,
                 train_score,
-                valid_score,
-                test_score,
-                best_test_score,
+                valid_score
             ))
 
-        print("\n")
-        print("The Best Test Score(" + metric_name + ") in Testing Session is %.4f" % (
-                best_test_score,
-            ))
-        print("\n")
-        
-        self.model.load_state_dict(torch.load("../checkpoints/checkpoint.pt"))
+        # Test Session
+        y_scores = self._test(test_loader, metric_name)
+        submission = pd.DataFrame({'id': range(len(y_scores)),'prediction':y_scores})
+        submission.to_csv("output/submission_{0}_{1}_avgscore{2:.4f}.csv".format(config.model_name, config.dataset_name, np.average(valid_scores)),index=False)       
 
-        return train_scores, valid_scores, \
-            best_valid_score, best_test_score
+        # self.model.load_state_dict(torch.load("../checkpoints/checkpoint.pt"))
+
+        return train_scores, valid_scores, best_valid_score
