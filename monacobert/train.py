@@ -5,7 +5,7 @@ import torch
 from get_modules.get_loaders import get_loaders
 from get_modules.get_models import get_models
 from get_modules.get_trainers import get_trainers
-from utils import get_optimizers, get_crits, recorder, visualizer
+from utils import get_optimizers, get_crits, recorder, visualizer, setSeeds
 
 from define_argparser import define_argparser
 
@@ -51,6 +51,7 @@ def main(config, train_loader=None, valid_loader=None, test_loader=None, num_q=N
 # If you used python train.py, then this will be start first
 if __name__ == "__main__":
     # get config from define_argparser
+    setSeeds()
     config = define_argparser() 
 
     # if fivefold = False 
