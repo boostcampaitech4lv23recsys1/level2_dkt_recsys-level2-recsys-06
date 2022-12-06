@@ -340,7 +340,7 @@ class MonaCoBERT_Trainer():
                 print("Early stopping")
                 break
 
-            print("Epoch(%d/%d) result: train_score=%.4f  valid_score=%.4f test_score=%.4f best_test_score=%.4f" % (
+            print("Epoch(%d/%d) result: train_score=%.4f  valid_score=%.4f" % (
                 epoch_index + 1,
                 self.n_epochs,
                 train_score,
