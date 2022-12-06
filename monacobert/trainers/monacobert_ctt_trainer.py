@@ -314,6 +314,7 @@ class MonaCoBERT_CTT_Trainer():
 
     # train use the _train, _validate, _test
     def train(self, train_loader, valid_loader, test_loader, config):
+        path = './checkpoints/{}_checkpoint.pt'.format(config.model_name)
         
         if config.crit == "binary_cross_entropy":
             best_valid_score = 0
@@ -328,7 +329,7 @@ class MonaCoBERT_CTT_Trainer():
         valid_scores = []
 
         # early_stopping
-        early_stopping = EarlyStopping(metric_name=metric_name,best_score=best_valid_score)
+        early_stopping = EarlyStopping(metric_name=metric_name,best_score=best_valid_score,path=path)
 
         # Train and Valid Session
         for epoch_index in range(self.n_epochs):
@@ -360,6 +361,9 @@ class MonaCoBERT_CTT_Trainer():
                 train_score,
                 valid_score
             ))
+
+        # best model이 저장되어있는 last checkpoint를 로드한다.
+        self.model.load_state_dict(torch.load(path))
 
         # Test Session
         y_scores = self._test(test_loader, metric_name)
