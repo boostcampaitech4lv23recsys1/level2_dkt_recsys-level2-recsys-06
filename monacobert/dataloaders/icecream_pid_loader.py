@@ -20,7 +20,7 @@ class ICECREAM_PID(Dataset):
 
         self.train_usernum = 6698   # Hard Coding
         
-        if os.path.exists(os.path.join(self.pickle_dir, "q_seqs.pkl")):
+        if os.path.exists(os.path.join(self.pickle_dir, "pid_seqs.pkl")):
             with open(os.path.join(self.pickle_dir, "q_seqs.pkl"), "rb") as f:
                 self.q_seqs = pickle.load(f)
             with open(os.path.join(self.pickle_dir, "r_seqs.pkl"), "rb") as f:
