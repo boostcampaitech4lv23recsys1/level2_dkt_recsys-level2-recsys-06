@@ -12,7 +12,7 @@ def userid_table(train_df,feature):
     train_df = train_df.sort_values(by=["userID", "Timestamp"], axis=0)
     group = train_df[feature].groupby("userID").apply(lambda x: (x["userID"].values, 
                             x["assessmentItemID"].values, x["testId"].values,x['time_lag'].values,x['Timestamp'].values, 
-                            x["answerCode"].values,x["KnowledgeTag"].values,x["elapsed"].values,x["assessmentItemAverage"].values,x["UserAverage"].values))
+                            x["answerCode"].values,x["KnowledgeTag"].values,x["elapsed"].values,x["assessmentItemAverage"].values,x["UserAverage"].values,x["elo"].values))
     return group.values
 
 def origin_userid_table(train_df,feature):
@@ -39,6 +39,7 @@ def user_indexing(train_data,train_idx,valid_idx,userby,feature):
 
 
 submission_list = []
+auc_array = []
 feature = ['userID', 'assessmentItemID', 'testId', 'time_lag', 'Timestamp', 'answerCode', 
             'KnowledgeTag', 'elapsed', 'assessmentItemAverage','UserAverage','elo'] #'UserAverage'
 origin_feature=['userID', 'assessmentItemID', 'testId','Timestamp', 'answerCode','KnowledgeTag']
@@ -47,19 +48,18 @@ test_path = "/opt/ml/input/data/test_data.csv"
 train_data = pd.read_csv(train_path)
 test_data=pd.read_csv(test_path)
 total_index=train_data['userID'].unique()
-# train_data = feature_engineering(train_data)
-userby = origin_userid_table(train_data,origin_feature)
+train_data = feature_engineering(train_data)
+userby = userid_table(train_data,feature)
 pre_process_validation(test_data,train_data,'',0,-1,0)
 kf = KFold(n_splits = 5, shuffle = True, random_state = 42)
 for idx,(train_idx, valid_idx) in enumerate(kf.split(total_index)):
-    train_df,val_df=user_indexing(train_data,train_idx,valid_idx,userby,origin_feature)
-    train_df=feature_engineering(train_df)
-    val_df = feature_engineering(val_df)
+    train_df,val_df=user_indexing(train_data,train_idx,valid_idx,userby,feature)
     kfold_preprocess(train_df,val_df,feature)
-    train()
+    best_auc = train()
+    auc_array.append(best_auc)
     submissions = kfold_main()
     submission_list.append(submissions)
 submission_fold = pd.DataFrame()
 submission_fold['id'] = np.arange(744)
-submission_fold['prediction'] = np.mean(submission_list, axis=0)
+submission_fold['prediction'] = np.mean(submission_list, axis=0) # submission_list[auc_array.index(max(auc_array))]# np.mean(submission_list, axis=0)
 submission_fold.to_csv("Saint_kfold.csv", index=False)

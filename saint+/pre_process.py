@@ -53,7 +53,7 @@ def feature_engineering(train_df):
     train_df = duration(train_df)
     train_df = make_assess_ratio(train_df)
     train_df = make_user_ratio(train_df)
-    train_df = elo(train_df,'testId')
+    train_df = elo(train_df,'assessmentItemID')
     train_df=indexing('assessmentItemID',train_df)
     train_df=indexing('testId',train_df)
     train_df["assessmentItemID"] += 1
