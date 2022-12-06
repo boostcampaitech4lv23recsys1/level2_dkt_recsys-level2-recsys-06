@@ -1,22 +1,53 @@
+import os
+import pickle
+
 import numpy as np
 import pandas as pd
 
 from torch.utils.data import Dataset
 
 DATASET_DIR = "../../data/preprocessed_df.csv"
+PICKLE_DIR = "pickle/"
 
 class ICECREAM_PID_DIFF(Dataset):
-    def __init__(self, max_seq_len, config=None, dataset_dir=DATASET_DIR) -> None:
+    def __init__(self, max_seq_len, config=None, dataset_dir=DATASET_DIR, pickle_dir=PICKLE_DIR) -> None:
         super().__init__()
         self.dataset_dir = dataset_dir
 
         # 추가
         self.config = config
+        self.pickle_dir = pickle_dir
+        
         self.train_usernum = 6698   # Hard Coding
         
-        self.q_seqs, self.r_seqs, self.q_list, self.u_list, \
-            self.r_list, self.q2idx, self.u2idx, self.pid_seqs, \
-                self.diff_seqs, self.pid_list, self.diff_list = self.preprocess()
+        if os.path.exists(os.path.join(self.pickle_dir, "q_seqs.pkl")):
+            with open(os.path.join(self.pickle_dir, "q_seqs.pkl"), "rb") as f:
+                self.q_seqs = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "r_seqs.pkl"), "rb") as f:
+                self.r_seqs = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "q_list.pkl"), "rb") as f:
+                self.q_list = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "u_list.pkl"), "rb") as f:
+                self.u_list = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "r_list.pkl"), "rb") as f:
+                self.r_list = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "q2idx.pkl"), "rb") as f:
+                self.q2idx = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "u2idx.pkl"), "rb") as f:
+                self.u2idx = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "pid_seqs.pkl"), "rb") as f:
+                self.pid_seqs = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "diff_seqs.pkl"), "rb") as f:
+                self.diff_seqs = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "pid_list.pkl"), "rb") as f:
+                self.pid_list = pickle.load(f)
+            with open(os.path.join(self.pickle_dir, "diff_list.pkl"), "rb") as f:
+                self.diff_list = pickle.load(f)
+
+        else:
+            self.q_seqs, self.r_seqs, self.q_list, self.u_list, \
+                self.r_list, self.q2idx, self.u2idx, self.pid_seqs, \
+                    self.diff_seqs, self.pid_list, self.diff_list = self.preprocess()
 
         self.num_u = self.u_list.shape[0]
         self.num_q = self.q_list.shape[0]
@@ -125,8 +156,30 @@ class ICECREAM_PID_DIFF(Dataset):
                 else:
                     pid_diff_seq.append(train_pid_diff[pid])
 
-            diff_seqs.append(pid_diff_seq)    
+            diff_seqs.append(pid_diff_seq)
         
+        with open(os.path.join(self.pickle_dir, "q_seqs.pkl"), "wb") as f:
+            pickle.dump(q_seqs, f)
+        with open(os.path.join(self.pickle_dir, "r_seqs.pkl"), "wb") as f:
+            pickle.dump(r_seqs, f)
+        with open(os.path.join(self.pickle_dir, "q_list.pkl"), "wb") as f:
+            pickle.dump(q_list, f)
+        with open(os.path.join(self.pickle_dir, "u_list.pkl"), "wb") as f:
+            pickle.dump(u_list, f)
+        with open(os.path.join(self.pickle_dir, "r_list.pkl"), "wb") as f:
+            pickle.dump(r_list, f)
+        with open(os.path.join(self.pickle_dir, "q2idx.pkl"), "wb") as f:
+            pickle.dump(q2idx, f)
+        with open(os.path.join(self.pickle_dir, "u2idx.pkl"), "wb") as f:
+            pickle.dump(u2idx, f)
+        with open(os.path.join(self.pickle_dir, "pid_seqs.pkl"), "wb") as f:
+            pickle.dump(pid_seqs, f)
+        with open(os.path.join(self.pickle_dir, "diff_seqs.pkl"), "wb") as f:
+            pickle.dump(diff_seqs, f)
+        with open(os.path.join(self.pickle_dir, "pid_seqs.pkl"), "wb") as f:
+            pickle.dump(pid_seqs, f)
+        with open(os.path.join(self.pickle_dir, "diff_list.pkl"), "wb") as f:
+            pickle.dump(diff_list, f)
 
         return q_seqs, r_seqs, q_list, u_list, r_list, q2idx, u2idx, pid_seqs, diff_seqs, pid_list, diff_list #끝에 두개 추가
 
