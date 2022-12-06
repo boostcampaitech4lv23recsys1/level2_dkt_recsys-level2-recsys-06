@@ -122,7 +122,7 @@ class ICECREAM_PID(Dataset):
             pickle.dump(u2idx, f)
         with open(os.path.join(self.pickle_dir, "pid_seqs.pkl"), "wb") as f:
             pickle.dump(pid_seqs, f)
-        with open(os.path.join(self.pickle_dir, "pid_seqs.pkl"), "wb") as f:
+        with open(os.path.join(self.pickle_dir, "pid_list.pkl"), "wb") as f:
             pickle.dump(pid_seqs, f)
 
         return q_seqs, r_seqs, q_list, u_list, r_list, q2idx, u2idx, pid_seqs, pid_list
