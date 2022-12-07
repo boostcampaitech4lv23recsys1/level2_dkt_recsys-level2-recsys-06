@@ -8,3 +8,6 @@ boosting.ipynb
 .github
 docs
 README.md
+dkt/wandb
+dkt/models
+dkt/asset
