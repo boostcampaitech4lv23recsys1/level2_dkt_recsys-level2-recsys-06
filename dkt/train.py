@@ -17,7 +17,6 @@ def main(args):
 
     setSeeds(args.seed)
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
-    args.max_seq_len = 30 if args.group_mode == 'userid_with_testid' else 1860
 
     preprocess = Preprocess(args)
     preprocess.load_train_data(args.train_file_name)
@@ -28,9 +27,9 @@ def main(args):
     train_data = preprocess.get_train_data()
     test_data = preprocess.get_test_data()
 
-    wandb.init(project="lastqt", entity="recommendu",name=f"{args.model}_{args.valid_mode}_{args.computing_loss}_{args.hidden_dim}_{args.max_seq_len}", config=vars(args))
-
-    
+    wandb.init(project="lastqt", entity="recommendu", config=vars(args))
+    wandb.run.name = "model: {0} hdim: {1} nlayer: {2} lr: {3}, head: {4}, len :{5} batch :{6} c_loss:{7} valid:{8}".format(wandb.config["model"],wandb.config['hidden_dim'], wandb.config['n_layers'], wandb.config['lr'], wandb.config['n_heads'], wandb.config['max_seq_len'],wandb.config['batch_size'],wandb.config["computing_loss"],wandb.config["valid_mode"])
+    print(wandb.run.name) 
 
 
 

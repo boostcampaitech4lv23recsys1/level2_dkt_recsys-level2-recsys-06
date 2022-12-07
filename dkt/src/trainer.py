@@ -10,7 +10,7 @@ import tqdm
 from .criterion import get_criterion
 from .dataloader import get_loaders
 from .metric import get_metric
-from .model import LSTM, LSTMATTN, Bert, ModifiedTransformer, LastQuery, last_query_model
+from .model import LSTM, LSTMATTN, Bert, ModifiedTransformer, last_query_model, gru_lastquery
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
 
@@ -183,8 +183,8 @@ def get_model(args):
         model = last_query_model(args)
     if args.model == 'modifiedtf':
         model = ModifiedTransformer(args)
-    if args.model == "lastqt2":
-        model = LastQuery(args)
+    if args.model == "gru_lastquery":
+        model = gru_lastquery(args)
 
     return model
 

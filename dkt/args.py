@@ -9,9 +9,9 @@ def parse_args():
     parser.add_argument("--group_mode", default="userid", type=str, help="userid, userid_with_testid")
     parser.add_argument("--computing_loss", default="custom2", type=str, help="all, last, custom, custom2")
     parser.add_argument("--device", default="gpu", type=str, help="cpu or gpu")
-    parser.add_argument("--model", default="lastqt", type=str, help="lstm, lstmattn, bert, modifiedtf, lastqt, lastqt2")
+    parser.add_argument("--model", default="lastqt", type=str, help="lstm, lstmattn, bert, modifiedtf, lastqt, gru_lastquery")
 
-    parser.add_argument("--data_dir", default="/opt/ml/input/data", type=str, help="data directory")
+    parser.add_argument("--data_dir", default="/opt/ml/input", type=str, help="data directory")
     parser.add_argument("--asset_dir", default="/opt/ml/output/asset/", type=str, help="data directory")
     parser.add_argument("--train_file_name", default="train_data.csv", type=str, help="train file name")
 
