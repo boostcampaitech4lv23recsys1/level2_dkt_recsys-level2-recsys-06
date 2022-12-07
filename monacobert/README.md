@@ -17,7 +17,7 @@ python train.py --model_fn model.pth --model_name monacobert_ctt --dataset_name 
 ```
 
 # Result 
-(with max_seq_len: `32`, 나머지는 default setting과 동일)
+(with max_seq_len: `32`, learning_rate `0.001`, 나머지는 default setting과 동일)
 
 pid model
 | Model | monacobert | 
