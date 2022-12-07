@@ -17,14 +17,14 @@ python train.py --model_fn model.pth --model_name monacobert_ctt --dataset_name 
 ```
 
 # Result 
-(with max_seq_len: `32`, learning_rate `0.001`, 나머지는 default setting과 동일)
+(with max_seq_len: `32`, batch_size: `128`, dropout_p: `0.1`, 나머지는 default setting과 동일)
 
 pid model
 | Model | monacobert | 
 | ---- | ---- | 
-| AUC | 0.8251 | 
+| AUC | 0.8227 | 
 
 pid + diff model
 | Model | monacobert_ctt | bert_ctt | monabert_ctt | cobert_ctt |
 | ---- | ---- | ---- | ---- | ---- | 
-| AUC | **0.8280** | 0.8181 | 0.8254 | 0.8252 |
+| AUC | **0.8296** | 0.8270 | 0.8269 | 0.8316 |
