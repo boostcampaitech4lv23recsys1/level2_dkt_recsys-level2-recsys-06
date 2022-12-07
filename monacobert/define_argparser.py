@@ -14,7 +14,7 @@ def define_argparser():
     p.add_argument('--batch_size', type=int, default=64)
     p.add_argument('--n_epochs', type=int, default=100)
     p.add_argument('--verbose', type=int, default=2)
-    p.add_argument('--learning_rate', type=float, default = 0.001)
+    p.add_argument('--learning_rate', type=float, default = 0.0005)
 
     # model, opt, dataset, crit arguments
     p.add_argument('--model_name', type=str, default='monacobert_ctt')
@@ -28,7 +28,7 @@ def define_argparser():
     p.add_argument('--hidden_size', type=int, default=512)
     p.add_argument('--num_head', type=int, default=16) # it will be divided 2(default) in attention class, so actual head num is 8(default)
     p.add_argument('--output_size', type=int, default=1) # KT is binary classification
-    p.add_argument('--dropout_p', type=float, default=.1)
+    p.add_argument('--dropout_p', type=float, default=.5)
     p.add_argument('--use_leakyrelu', type=bool, default=True)
     
     # grad_accumulation

@@ -1,8 +1,12 @@
-models="monacobert_ctt bert_ctt monabert_ctt cobert_ctt"
-dataset_names="icecream_pid_diff"
+# models="monacobert_ctt bert_ctt monabert_ctt cobert_ctt"
+# dataset_names="icecream_pid_diff"
 
 # models="monacobert"
 # dataset_names="icecream_pid"
+
+# best
+models="monacobert_ctt"
+dataset_names="icecream_pid_diff"
 
 for model in ${models}
 do
