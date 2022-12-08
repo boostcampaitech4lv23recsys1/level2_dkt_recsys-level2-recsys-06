@@ -254,7 +254,7 @@ class ModifiedTransformer(nn.Module):
         # Embedding
         self.enc_embedding = DataEmbedding(c_in = 1, d_model = self.hidden_dim, args = self.args, dropout = self.args.drop_out)
         self.blocks = nn.ModuleList([SASRecBlock(self.args.n_heads, self.hidden_dim, self.args.drop_out) for _ in range(self.n_layers)])
-
+        self.activation = nn.GELU()
         self.lstm = nn.LSTM(self.hidden_dim, self.hidden_dim, self.n_layers, batch_first=True)
 
         self.fc = nn.Linear(self.hidden_dim, 1)
@@ -267,7 +267,6 @@ class ModifiedTransformer(nn.Module):
         'duration', 'userIDElo', 'assessmentItemIDElo', 'testIdElo', 'KnowledgeTagElo', 
         'past_correct', 'average_correct', 'mean_time', 'answerCode', 'mask']
         """
-
         batch_size = input['interaction'].size(0)
         mask = input['mask']
         max_len = self.args.max_seq_len
@@ -276,18 +275,29 @@ class ModifiedTransformer(nn.Module):
         pad_attn_mask = pad_attn_mask.unsqueeze(1).expand(batch_size , max_len, max_len).unsqueeze(1)
 
         x = input['interaction']
+
         x_mark_categ = [input['assessmentItemID'], input['testId'], input['KnowledgeTag'], input['relative_time_median'],
                         input['hour'], input['dayofweek']]
+
         x_mark_cont = [input['duration'], input['userIDElo'], input['assessmentItemIDElo'], 
                         input['testIdElo'], input['KnowledgeTagElo'], input['past_correct'], 
                         input['average_correct'], input['mean_time']]
 
+        # x = input['interaction']
+
+        # x_mark_categ = [input['assessmentItemID'], input['testId'], input['KnowledgeTag'], input['relative_time_median'],
+        #                 input['hour'], input['dayofweek']]
+
+        # x_mark_cont = [input['duration'], input['userIDElo'], input['assessmentItemIDElo'], 
+        #                  input['past_correct'], 
+        #                 input['average_correct'], input['mean_time']]
+        
         out = self.enc_embedding(x, x_mark_categ, x_mark_cont)
 
         for block in self.blocks:
             out, attn_dist = block(out, pad_attn_mask)
-        out, _ = self.lstm(out)
-        # out, _ = self.lstm(X)
+        # out, _ = self.lstm(out)
         out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        out = self.activation(out)
         out = self.fc(out).view(batch_size, -1)
         return out

@@ -94,7 +94,7 @@ class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, args, dropout=0.2):
         super(DataEmbedding, self).__init__()
 
-        self.position_embedding = PositionalEmbedding(d_model=d_model)
+        self.position_embedding = PositionalEmbedding(d_model=d_model, max_len = args.max_seq_len)
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
 
         self.categ_embedding = CategoricalEmbedding(d_model = d_model, args = args)
@@ -105,11 +105,12 @@ class DataEmbedding(nn.Module):
 
     def forward(self, x, x_mark_categ, x_mark_cont):
         x = x.unsqueeze(2).float()
-        value_embed = self.value_embedding(x)
+        # value_embed = self.value_embedding(x)
         position_embed = self.position_embedding(x)
         categ_embed = self.categ_embedding(x_mark_categ)
         cont_embed = self.cont_embedding(x_mark_cont)
 
-        x = value_embed + position_embed + categ_embed + cont_embed
+        # x = value_embed + position_embed + categ_embed + cont_embed
+        x = position_embed + categ_embed + cont_embed
         
         return self.dropout(x)

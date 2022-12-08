@@ -27,7 +27,7 @@ def main(args):
 
     setSeeds(args.seed)
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
-    args.max_seq_len = 30 if args.group_mode == 'userid_with_testid' else 512
+    args.max_seq_len = 30 if args.group_mode == 'userid_with_testid' else args.max_seq_len
 
     preprocess = Preprocess(args)
     preprocess.load_train_data(args.train_file_name)
