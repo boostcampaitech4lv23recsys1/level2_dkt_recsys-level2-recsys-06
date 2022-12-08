@@ -137,7 +137,7 @@ class LSTMATTN(nn.Module):
 
     def forward(self, input):
 
-        test, question, tag, duration, assess_ratio, _ , mask, interaction = input
+        test, question, tag, duration, assess_ratio,lastid, correct, mask, interaction = input
 
         batch_size = interaction.size(0)
 
@@ -574,9 +574,7 @@ class gru_lastquery(nn.Module):
         embed = self.comb_proj(embed)
 
         # out = embed_interaction + embed_test + embed_question + embed_tag + embed_duration + embed_ratio#+ in_pos                      # (b,sequence,d) [64,100,128]
-        
-        print("out shape : ",embed.shape)
-        
+
         #in_pos = get_pos(self.seq_len)
         #in_pos = self.embd_pos( in_pos )
         #out = out + in_pos                                      # Applying positional embedding

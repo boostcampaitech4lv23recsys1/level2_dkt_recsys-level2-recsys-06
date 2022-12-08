@@ -2,13 +2,14 @@ import math
 import os
 from pathlib import Path
 import wandb
+import gc
 
 import torch
 import torch.nn.functional as F
 import tqdm
 
 from .criterion import get_criterion
-from .dataloader import get_loaders
+from .dataloader import get_loaders, data_augmentation
 from .metric import get_metric
 from .model import LSTM, LSTMATTN, Bert, ModifiedTransformer, last_query_model, gru_lastquery
 from .optimizer import get_optimizer
@@ -16,7 +17,17 @@ from .scheduler import get_scheduler
 
 
 def run(args, train_data, valid_data, model, fold_num):
-    train_loader, valid_loader = get_loaders(args, train_data, valid_data)
+    # 캐시 메모리 비우기 및 가비지 컬렉터 가동!
+    torch.cuda.empty_cache()
+    gc.collect()
+
+    # augmentation
+    augmented_train_data = data_augmentation(train_data, args)
+
+    if len(augmented_train_data) != len(train_data):
+        print(f"Data Augmentation applied. Train data {len(train_data)} -> {len(augmented_train_data)}\n")
+    
+    train_loader, valid_loader = get_loaders(args, augmented_train_data, valid_data)
 
     # only when using warmup scheduler
     args.total_steps = int(math.ceil(len(train_loader.dataset) / args.batch_size)) * (

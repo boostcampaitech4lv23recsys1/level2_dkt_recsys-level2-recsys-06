@@ -27,8 +27,8 @@ def main(args):
     train_data = preprocess.get_train_data()
     test_data = preprocess.get_test_data()
 
-    wandb.init(project="lastqt", entity="recommendu", config=vars(args))
-    wandb.run.name = "model: {0} hdim: {1} nlayer: {2} lr: {3}, head: {4}, len :{5} batch :{6} c_loss:{7} valid:{8}".format(wandb.config["model"],wandb.config['hidden_dim'], wandb.config['n_layers'], wandb.config['lr'], wandb.config['n_heads'], wandb.config['max_seq_len'],wandb.config['batch_size'],wandb.config["computing_loss"],wandb.config["valid_mode"])
+    wandb.init(project="gru-lastqt", entity="recommendu", config=vars(args))
+    wandb.run.name = "model: {0} hdim: {1} nlayer: {2} lr: {3}, head: {4}, len :{5} batch :{6} c_loss:{7} valid:{8} window {9} strid {10}".format(wandb.config["model"],wandb.config['hidden_dim'], wandb.config['n_layers'], wandb.config['lr'], wandb.config['n_heads'], wandb.config['max_seq_len'],wandb.config['batch_size'],wandb.config["computing_loss"],wandb.config["valid_mode"], wandb.config["window"], wandb.config["stride"])
     print(wandb.run.name) 
 
 

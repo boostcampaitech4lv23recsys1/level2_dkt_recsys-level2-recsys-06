@@ -10,10 +10,10 @@ DTYPE = {
 }
 
 def main():
-    train_df = pd.read_csv("/opt/ml/input/train_data.csv", dtype = DTYPE, parse_dates = ['Timestamp'], low_memory = False)\
+    train_df = pd.read_csv("/opt/ml/input/data/train_data.csv", dtype = DTYPE, parse_dates = ['Timestamp'], low_memory = False)\
                     .sort_values(by = ['userID', 'Timestamp']).reset_index(drop=True)
 
-    test_df = pd.read_csv("/opt/ml/input/test_data.csv", low_memory = False)\
+    test_df = pd.read_csv("/opt/ml/input/data/test_data.csv", low_memory = False)\
                 .sort_values(by = ['userID', 'Timestamp']).reset_index(drop = True)
     
     total_df = pd.concat([train_df, test_df], axis = 0)
