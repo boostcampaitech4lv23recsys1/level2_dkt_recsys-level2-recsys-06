@@ -11,7 +11,7 @@ import tqdm
 from .criterion import get_criterion
 from .dataloader import get_loaders, data_augmentation
 from .metric import get_metric
-from .model import LSTM, LSTMATTN, Bert, ModifiedTransformer, last_query_model, gru_lastquery
+from .model import LSTM, LSTMATTN, Bert, last_query_model, gru_lastquery
 from .optimizer import get_optimizer
 from .scheduler import get_scheduler
 
