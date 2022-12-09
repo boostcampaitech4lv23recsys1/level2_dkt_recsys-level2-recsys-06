@@ -5,9 +5,89 @@ import torch
 from sklearn.metrics import accuracy_score, roc_auc_score
 from torch_geometric.nn.models import LightGCN
 
+from typing import Optional, Union
+from torch_geometric.typing import Adj, OptTensor
+from torch import Tensor
+import torch.nn as nn
+from torch.nn import Embedding, ModuleList
 
-def build(n_node, weight=None, logger=None, **kwargs):
-    model = LightGCN(n_node, **kwargs)
+from torch_geometric.nn.conv import LGConv
+
+EPS = 1e-10
+class OrderedLightGCN(LightGCN):
+    def __init__(
+        self,
+        order_alpha: float,
+        n_user: int,
+        n_item: int,
+        num_nodes: int, embedding_dim: int, num_layers: int, alpha: Optional[Union[float, Tensor]] = None, **kwargs,
+    ):
+        super().__init__(num_nodes, embedding_dim, num_layers, alpha, **kwargs)
+        self.order_alpha = order_alpha
+        self.user_embedding = nn.Embedding(n_user, embedding_dim)
+        self.item_embedding = nn.Embedding(n_item, embedding_dim)
+        self.user_order_embedding = nn.Embedding(n_user, embedding_dim)
+        self.item_order_embedding = nn.Embedding(n_item, embedding_dim)
+        self.clamping()
+    
+    def clamping(self) :
+        self.user_order_embedding.weight.data = torch.clamp(self.user_order_embedding.weight.data, min=EPS)
+        self.item_order_embedding.weight.data = torch.clamp(self.item_order_embedding.weight.data, min=EPS)
+    
+    def get_embedding(self, edge_index: Adj) -> Tensor:
+
+        self.ordered_user_embedding = self.user_embedding.weight + self.user_order_embedding.weight
+        self.ordered_item_embedding = self.item_embedding.weight + self.item_order_embedding.weight
+
+        self.order_embedding = torch.cat([
+            self.ordered_user_embedding,
+            self.ordered_item_embedding
+            ],dim= 0)
+
+        # x = self.embedding.weight
+        x = self.order_embedding
+        out = x * self.alpha[0]
+
+        for i in range(self.num_layers):
+            x = self.convs[i](x, edge_index)
+            out = out + x * self.alpha[i + 1]
+
+        return out
+
+    def link_pred_loss(self, pred: Tensor, edge_label: Tensor,
+                       **kwargs) -> Tensor:
+        r"""Computes the model loss for a link prediction objective via the
+        :class:`torch.nn.BCEWithLogitsLoss`.
+
+        Args:
+            pred (Tensor): The predictions.
+            edge_label (Tensor): The ground-truth edge labels.
+            **kwargs (optional): Additional arguments of the underlying
+                :class:`torch.nn.BCEWithLogitsLoss` loss function.
+        """
+        loss_pos, loss_neg = 0,0
+
+        # positive sample에 대한 Loss 계산
+        pos_idx = (edge_label == 1).nonzero(as_tuple=False)
+        loss_pos = self.item_order_embedding(pos_idx) - self.user_order_embedding(pos_idx)
+        loss_pos[loss_pos < EPS] = EPS
+        loss_pos = torch.sum(torch.sum(loss_pos ** 2, 1))
+
+        # negative sample에 대한 Loss 계산
+        neg_idx = (edge_label == 0).nonzero(as_tuple=False)
+        loss_neg = self.item_order_embedding(neg_idx) - self.user_order_embedding(neg_idx)
+        loss_neg[loss_neg < EPS] = EPS
+        loss_neg = torch.sum(loss_neg ** 2, 1)
+        loss_neg = self.order_alpha - loss_neg
+        loss_neg[loss_neg < EPS] = EPS
+        loss_neg = torch.sum(loss_neg)
+
+        order_loss = loss_pos + loss_neg
+        loss_fn = torch.nn.BCEWithLogitsLoss(**kwargs)
+        return order_loss + loss_fn(pred, edge_label.to(pred.dtype))
+
+def build(order_alpha, n_user, n_item, n_node, weight=None, logger=None, **kwargs):
+    model = OrderedLightGCN(order_alpha, n_user, n_item, n_node, **kwargs)
     if weight:
         if not os.path.isfile(weight):
             logger.fatal("Model Weight File Not Exist")

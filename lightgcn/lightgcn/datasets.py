@@ -18,7 +18,7 @@ def prepare_dataset(device, basepath, verbose=True, logger=None):
         print_data_stat(valid_data, "Valid", logger=logger)
         print_data_stat(test_data, "Test", logger=logger)
 
-    return train_data_proc, valid_data_proc, test_data_proc, len(id2index)
+    return train_data_proc, valid_data_proc, test_data_proc, len(data.userID), len(data.assessmentItemID), len(id2index)
 
 
 def load_data(basepath):
@@ -39,7 +39,7 @@ def separate_data(data):
     test_data = data[data.answerCode < 0]
     test_idx = test_data.index
     train_data = data[data.answerCode >= 0]
-    
+
     # test set에 있는 모든 유저의 sequence의 CFG.valid_num개의 문제 풀이 데이터를 valid data로 추가
     valid_idx = []
     if CFG.user_wandb:
