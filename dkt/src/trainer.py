@@ -192,8 +192,6 @@ def get_model(args):
         model = Bert(args)
     if args.model == "lastqt":
         model = last_query_model(args)
-    if args.model == 'modifiedtf':
-        model = ModifiedTransformer(args)
     if args.model == "gru_lastquery":
         model = gru_lastquery(args)
 

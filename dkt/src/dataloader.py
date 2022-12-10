@@ -93,7 +93,6 @@ class Preprocess:
             le = LabelEncoder()
             if is_train:
                 # For UNKNOWN class
-                print("새로만들어용")
                 a = df[col].unique().tolist() + ["unknown"]
                 le.fit(a)
                 self.__save_labels(le, col)
@@ -193,7 +192,6 @@ class Preprocess:
         # TODO column을 변경할거면 여기서 변경할 수 있다.
         if self.args.group_mode == 'userid':
             group = (df[columns].groupby("userID").apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values, x["lastid"].values)))
-            print("group", group)
         elif self.args.group_mode == 'userid_with_testid':
             group = (df[columns].groupby(["userID", "testId"]).apply(lambda x: (x["userID"].values, x["testId"].values, x["assessmentItemID"].values, x["KnowledgeTag"].values, x['duration'].values, x['assess_ratio'].values, x["answerCode"].values, x['check'].values)))
         print(f"[PROCESS TIME]: {time.time() - stime}sec \n\n\n")
@@ -219,11 +217,7 @@ class DKTDataset(torch.utils.data.Dataset):
         #TODO user id를 추가해야하나?
         userid, test, question, tag, duration, assess_ratio, correct, lastid = row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[8]
         # print(f"[CORRECT IN DATA LOADER ] \n {correct}")
-        # TODO 왜 category?
-        """
-        그냥 cols로 이름 바꿔도 되겠는데? category만을 위한 columns들은 아님. 베이스라인에서는 category만 존재하긴 했다.
-        category로 이름 두면 헷갈리잖아.
-        """
+        
         columns = [test, question, tag, duration, assess_ratio, correct, lastid]
 
         # max seq len을 고려하여서 이보다 길면 자르고 아닐 경우 그대로 냅둔다
