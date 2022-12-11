@@ -28,6 +28,9 @@ pip install wandb  #wandb 사용시
 
 
 
+
+
+
 # 사용 시나리오
 
 - 상위 폴더에 존재하는 preprocess/assess_ratio.py 파일을 실행하여 pickle 파일 생성
