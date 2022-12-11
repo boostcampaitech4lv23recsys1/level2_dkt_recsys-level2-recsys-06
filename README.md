@@ -19,6 +19,8 @@
     ![image](https://user-images.githubusercontent.com/46878756/206904880-c3443995-2586-4967-842d-a73f391f1d7d.png)
 - Wandb
     - 하나의 계정으로 모델별로 프로젝트를 만들어 평가지표 기록
+    
+    <img width="1798" alt="스크린샷 2022-12-11 오후 9 56 30" src="https://user-images.githubusercontent.com/63237947/206904904-928daead-7303-4ae4-86ea-3eef47b28555.png">
 - Notion
     - 칸반 보드에서 현재 진행중인 업무를 트래킹
     
