@@ -29,10 +29,10 @@
 
 ## 🗃 Procedure
 
-## 🎨 Features
+## 🎨 Used Features
 
 ![image](https://user-images.githubusercontent.com/46878756/206903917-5222e81d-1c12-4942-891d-c3b9853da6c0.png)
-## 🖥 Models
+## 🖥 Used Models
 ![image](https://user-images.githubusercontent.com/46878756/206903934-2084c007-6736-4b15-bff1-e0c70a2e7a52.png)
 
 ## 📈 Result
