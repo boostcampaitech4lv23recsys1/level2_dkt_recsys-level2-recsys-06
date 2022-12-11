@@ -27,7 +27,8 @@ class Trainer():
     def train_boosting_model(self, trainset, validset, testset, categ_features):
         boost_cl = CatBoostClassifier(**self.params,  random_state = 42, verbose = False)
         boost_cl.fit(trainset.drop(['answerCode'], axis = 1), trainset[['answerCode']], 
-                cat_features = categ_features, early_stopping_rounds = 10)
+                eval_set = (validset.drop(['answerCode'], axis = 1), validset[['answerCode']]),
+                cat_features = categ_features, early_stopping_rounds = 200)
 
         y_hat = boost_cl.predict(validset.drop(['answerCode'], axis = 1))
         prob = boost_cl.predict_proba(validset.drop(['answerCode'], axis = 1))
