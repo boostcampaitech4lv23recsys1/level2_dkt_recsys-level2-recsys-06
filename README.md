@@ -26,9 +26,6 @@
     
     ![image](https://user-images.githubusercontent.com/46878756/206904804-545247ff-bc0f-46e2-becc-b359e9b8df1e.png)
 
-
-## 🗃 Procedure
-
 ## 🎨 Used Features
 
 ![image](https://user-images.githubusercontent.com/46878756/206903917-5222e81d-1c12-4942-891d-c3b9853da6c0.png)
