@@ -45,3 +45,5 @@ python kfold.py --parameters
 
 ### Reference
 https://github.com/Chang-Chia-Chi/SaintPlus-Knowledge-Tracing-Pytorch
+
+https://arxiv.org/pdf/2010.12042.pdf
