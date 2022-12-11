@@ -35,5 +35,6 @@ pip install wandb  #wandb 사용시
 
 - 상위 폴더에 존재하는 preprocess/assess_ratio.py 파일을 실행하여 pickle 파일 생성
 - args.py 수정 : 데이터 파일/출력 파일 경로 설정 등
+  - model arguments : **lstm, lstmattn, bert, lastqt, gru_lastquery**
 - train.py 실행 : 데이터 학습 수행 및 모델 저장
 - inference.py 실행 : 저장된 모델 로드 및 테스트 데이터 추론 수행
