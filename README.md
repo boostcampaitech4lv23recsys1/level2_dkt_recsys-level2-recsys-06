@@ -15,10 +15,15 @@
 - GitHub
     - git convention 적용 & gitmoji를 사용해서 커밋 메시지 시각화
     - git issue 기능을 활용하여 issue tracking 및 pull request에 사용
+
+    ![image](https://user-images.githubusercontent.com/46878756/206904880-c3443995-2586-4967-842d-a73f391f1d7d.png)
 - Wandb
     - 하나의 계정으로 모델별로 프로젝트를 만들어 평가지표 기록
 - Notion
     - 칸반 보드에서 현재 진행중인 업무를 트래킹
+    
+    ![image](https://user-images.githubusercontent.com/46878756/206904804-545247ff-bc0f-46e2-becc-b359e9b8df1e.png)
+
 
 ## 🗃 Procedure
 
