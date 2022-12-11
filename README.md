@@ -36,5 +36,5 @@
 ## 🖥 Used Models
 ![image](https://user-images.githubusercontent.com/46878756/206903934-2084c007-6736-4b15-bff1-e0c70a2e7a52.png)
 
-## 📈 Result
+## 📈 Result  (Public Score 기준)
 ![프레젠테이션1](https://user-images.githubusercontent.com/63237947/206904719-6dce8349-ba44-405f-b3ed-3b687eee8d56.png)
