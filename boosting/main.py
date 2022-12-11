@@ -12,9 +12,9 @@ def parse_args():
     parser.add_argument("--output_path", type = str, default = "/opt/ml/output")
     
     parser.add_argument("--valid_mode", type = str, default = 'kfold', help = "kfold, random")
-    parser.add_argument("--iterations", type = int, default = 100)
-    parser.add_argument("--learning_rate", type = float, default = 3e-1)
-    parser.add_argument("--depth", type = int, default = 10)
+    parser.add_argument("--iterations", type = int, default = 2000)
+    parser.add_argument("--learning_rate", type = float, default = 4e-1)
+    parser.add_argument("--depth", type = int, default = 14)
     parser.add_argument("--eval_metric", type = str, default = "AUC")
 
     return parser.parse_args()
