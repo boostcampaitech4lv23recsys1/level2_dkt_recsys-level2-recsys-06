@@ -15,8 +15,9 @@
 - GitHub
     - git convention 적용 & gitmoji를 사용해서 커밋 메시지 시각화
     - git issue 기능을 활용하여 issue tracking 및 pull request에 사용
+    
+    ![image](https://user-images.githubusercontent.com/82706646/206905594-ff53ef4c-3247-4752-9239-eed5dc74c39e.png)
 
-    ![image](https://user-images.githubusercontent.com/46878756/206904880-c3443995-2586-4967-842d-a73f391f1d7d.png)
 - Wandb
     - 하나의 계정으로 모델별로 프로젝트를 만들어 평가지표 기록
     
