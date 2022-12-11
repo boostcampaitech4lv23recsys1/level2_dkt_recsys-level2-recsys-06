@@ -27,7 +27,9 @@
     
     ![image](https://user-images.githubusercontent.com/46878756/206904804-545247ff-bc0f-46e2-becc-b359e9b8df1e.png)
 
-## 🗃 Procedure
+## 🗃 Procedure!
+
+[제목 없는 다이어그램 (1)](https://user-images.githubusercontent.com/63237947/206905724-cc791646-1815-49f4-8a25-3e11fe885fb6.png)
 
 ## 🎨 Used Features
 
