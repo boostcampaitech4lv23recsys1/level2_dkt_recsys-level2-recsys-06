@@ -1,10 +1,13 @@
 # 라이브러리 설치
 
 ```
+
 pip install -r requirements.txt
-pip install wandb #wandb 사용시
+pip install wandb  #wandb 사용시
+
 
 ```
+
 
 # 파일
 - src
@@ -21,6 +24,7 @@ pip install wandb #wandb 사용시
 - inference.py : 시나리오에 따라 학습된 모델을 불러 테스트 데이터의 추론값을 계산하는 스크립트
 - train.py : 시나리오에 따라 데이터를 불러 모델을 학습하는 스크립트
 - sweep.yaml : wandb sweep으로 하이퍼파라미터 튜닝시 사용
+
 
 
 
