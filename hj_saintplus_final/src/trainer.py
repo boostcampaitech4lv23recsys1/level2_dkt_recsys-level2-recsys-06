@@ -53,16 +53,16 @@ def run(args, train_data, valid_data, model):
         auc, acc = validate(valid_loader, model, args, loss_fn, metrics)
 
         ## TODO: model save or early stopping
-        wandb.log(
-            {
-                "epoch": epoch,
-                "train_loss_epoch": train_loss,
-                "train_auc_epoch": train_auc,
-                "train_acc_epoch": train_acc,
-                "valid_auc_epoch": auc,
-                "valid_acc_epoch": acc,
-            }
-        )
+        # wandb.log(
+        #     {
+        #         "epoch": epoch,
+        #         "train_loss_epoch": train_loss,
+        #         "train_auc_epoch": train_auc,
+        #         "train_acc_epoch": train_acc,
+        #         "valid_auc_epoch": auc,
+        #         "valid_acc_epoch": acc,
+        #     }
+        # )
         if auc > best_auc:
             best_auc = auc
             # torch.nn.DataParallel로 감싸진 경우 원래의 model을 가져옵니다.
@@ -104,11 +104,12 @@ def train(train_loader, model, optimizer, scheduler, args, loss_fn, metrics):
         input = list(map(lambda t: t.to(args.device), process_batch(batch)))
         preds = model(input)
         targets = input[-1]  # 정답여부
-        interactions = input[-2]
-
-        loss_mask = (interactions != 0)
+        masked = input[-3]
+        
+        loss_mask = (masked != 0)
         preds_masked = torch.masked_select(preds, loss_mask)
         label_masked = torch.masked_select(targets, loss_mask)
+
         loss = loss_fn(preds_masked, label_masked)
 
         # loss = compute_loss(preds, targets)
@@ -240,10 +241,10 @@ def process_batch(batch):
 
     # interaction을 임시적으로 correct를 한칸 우측으로 이동한 것으로 사용
     interaction = correct + 1  # 패딩을 위해 correct값에 1을 더해준다. (패딩값이 0, 실제로 의미있는 값들은 1과 2)
-    interaction = interaction.roll(shifts=1, dims=1)
-    interaction_mask = mask.roll(shifts=1, dims=1)
-    interaction_mask[:, 0] = 0
-    interaction = (interaction * interaction_mask).to(torch.int64)
+    interaction = interaction.roll(shifts=1, dims=1)  # 하나씩 오른쪽으로 밀어준다
+    interaction_mask = mask.roll(shifts=1, dims=1)  # 마스크도 하나씩 오른쪽으로 밀어준다
+    interaction_mask[:, 0] = 0  # 패딩의 일부분이 되어야 할 첫 인덱스가 1 혹은 2가 되므로 0으로 바꿔준다
+    interaction = (interaction * interaction_mask).to(torch.int64)  # 패딩 적용을 한다
 
     # 카테고리컬 변수들
     test = ((test + 1) * mask).int()

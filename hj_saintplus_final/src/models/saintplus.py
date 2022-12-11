@@ -143,6 +143,7 @@ class SaintPlus(nn.Module):
 
         batch_size = interaction.size(0)
         seq_len = interaction.size(1)
+    
 
         # 신나는 embedding
         # ENCODER
@@ -226,7 +227,6 @@ class SaintPlus(nn.Module):
                             #    embed_question_Elo,
                             #    embed_test_elo,
                                ], dim=-1)
- 
         embed_enc = self.enc_comb_proj(embed_enc)
 
         # embed_enc = embed_test + embed_question + embed_tag

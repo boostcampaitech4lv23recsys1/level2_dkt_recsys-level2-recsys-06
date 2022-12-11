@@ -76,7 +76,6 @@ class Preprocess:
 
         if not os.path.exists(self.args.asset_dir):
             os.makedirs(self.args.asset_dir)
-    
         # 범주형 변수에 라벨 인코더를 더해주는 과정
         for col in cate_cols:
             le = LabelEncoder()
@@ -98,8 +97,9 @@ class Preprocess:
             # string으로 바꿔준 다음 인코더로 바꿔준다
             df[col] = df[col].astype(str)
             test = le.transform(df[col])
+    
             df[col] = test
-
+    
         return df
 
     def __feature_engineering(self, df, is_train=True):
@@ -133,7 +133,6 @@ class Preprocess:
         correct_t = df.groupby(['testId'])['answerCode'].agg(['mean', 'sum'])
         correct_t.columns = ["test_mean", 'test_sum']
 
-
         df = pd.merge(df, correct_i, on=['assessmentItemID'], how="left")
         df = pd.merge(df, correct_t, on=['testId'], how="left")
 
@@ -145,9 +144,9 @@ class Preprocess:
         df = df.drop(columns=['user_correct_answer', 'ts', 'prev_ts'])
         df[['user_acc']] = df[['user_acc']].fillna(1)
         
-        
-        with open("./featured_df", "wb") as file:
-            pickle.dump(df, file)
+        if is_train:
+            with open("./featured_df", "wb") as file:
+                pickle.dump(df, file)
 
         return df
 
@@ -162,29 +161,30 @@ class Preprocess:
             test_path = os.path.join(self.args.data_dir, 'test_data.csv')
             tr_df = pd.read_csv(train_path, parse_dates=['Timestamp'])
             te_df = pd.read_csv(test_path, parse_dates=['Timestamp'])
-
+            tr_df['is_tr'] = 1
+            te_df['is_tr'] = 0
             df = pd.concat([tr_df, te_df])
+
             df = self.__feature_engineering(df)
-        
-        df = df.sort_values(by=['userID','Timestamp'])
+
+
         train_df = df[df['answerCode']!=-1]
-        train_df = train_df.sort_values(by=['userID','Timestamp'])
-        test_index = df[df['answerCode']==-1].userID.unique()
-        test_df = df[df['userID'].isin(test_index)]
-        test_df = test_df.sort_values(by=['userID','Timestamp'])
-  
+        test_df = df[df['is_tr']==0]
+    
+        breakpoint()
+
         features_and_target = [
             'assessmentItemID', 'KnowledgeTag', 'testId', 'test_front', 'item_mean', 'item_sum', 
             'test_mean', 'test_sum', 'assessmentItemIDElo',
             'userIDElo', 'userID', 'user_acc', 'user_total_answer', 'test_frontElo',
              'month', 'day', 'hour', 'duration', 'answerCode'
              ] 
-       
-        train_df = self.__preprocessing(train_df[features_and_target], is_train)
+        
+        train_df = self.__preprocessing(train_df[features_and_target], is_train=True)
         test_df = self.__preprocessing(test_df[features_and_target], is_train=False)
         
         columns = [
-            'assessmentItemID', 'KnowledgeTag', 'testId', 'test_front', 'item_mean', 'item_sum', 
+            'assessmentItemID', 'KnowledgeTag', 'testId', 'test_front', 'item_mean', 'item_sum',  
             'test_mean', 'test_sum', 'assessmentItemIDElo',
             'userIDElo', 'userID', 'user_acc', 'user_total_answer', 'test_frontElo',
              'month', 'day', 'hour', 'duration', 'answerCode'
@@ -234,16 +234,10 @@ class Preprocess:
 
         if is_ready !=2:
             self.train_data, self.test_data = self.load_data_from_file(file_name, is_train=False)
-  
+        
         self.count_classes()
         
         
-
-
-
-    # def load_test_data(self, file_name):
-    #     self.test_data = self.load_data_from_file(file_name, is_train=False)
-
 
 class DKTDataset(torch.utils.data.Dataset):
     def __init__(self, data, args):
@@ -254,14 +248,15 @@ class DKTDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
          # 레코드 하나. row 하나에는 총 18개 피쳐 + answerCode가 각 유저의 문제 풀이 개수만큼 들어있다. 
          # 즉, row의 shape은 (19, seq_len)
-        row = self.data[index] 
-
+    
+        row = self.data[index]
+        
         # 각 data의 sequence length
         seq_len = len(row[0])  # 현재 유저가 푼 문제의 숫자
 
         # 앞서 만든 데이터 셋에서 각각 해당 유저가 푼 문제 수를 길이로 가지는 테스트번호/문제번호/태그번호/정답여부 배열
         cate_cols = [*row]
-        
+
         # cate_cols = [test, question, tag, correct]
 
         # max seq len보다 길면 자르는 단계
@@ -287,9 +282,9 @@ class DKTDataset(torch.utils.data.Dataset):
 
 
 def collate(batch):
-    col_n = len(batch[0])
-    col_list = [[] for _ in range(col_n)]
-    max_seq_len = len(batch[0][-1])
+    col_n = len(batch[0])  # 피쳐 + 타겟 + 마스크  의 개수
+    col_list = [[] for _ in range(col_n)]  # 마스킹 결과를 저장할 리스트
+    max_seq_len = len(batch[0][-1])  # 마스크의 길이가 max_seq_len이므로
 
     # batch의 값들을 각 column끼리 그룹화
     for row in batch:
@@ -300,7 +295,7 @@ def collate(batch):
 
     for i, _ in enumerate(col_list):
         col_list[i] = torch.stack(col_list[i])
-
+        
     return tuple(col_list)
 
 
