@@ -7,3 +7,7 @@ boosting.ipynb
 .git
 .github
 docs
+README.md
+dkt/wandb
+dkt/models
+dkt/asset
